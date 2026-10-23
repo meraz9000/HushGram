@@ -540,6 +540,16 @@ public final class ReelDownload {
     }
 
     /**
+     * Saves [media] — Instagram's own feed Media, whatever surface it came from — the way Download
+     * in a reel's menu does, for the Save button on instants. Runs saveReel directly, so it works
+     * whatever the Download any reel switch holds. Answers whether the save started.
+     */
+    public static boolean saveInstantsMedia(Object media, Activity activity) {
+        Context context = activity != null ? activity : Utils.getContext();
+        return saveReel(context, media);
+    }
+
+    /**
      * Starts the save of the reel [media] and answers whether it started: its video, or, for an
      * item with neither a single video file nor a manifest, its picture at the largest size. The
      * Reels viewer shows photos that come with music, and those have no video at all (#71). A

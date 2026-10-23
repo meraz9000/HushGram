@@ -808,6 +808,14 @@ public class Settings extends BaseSettings {
             new BooleanSetting("hushgram_hide_instants", FALSE, true);
 
     /**
+     * A Save button in the reply bar of an instant (a friend's quick photo or video in the Instants
+     * feed), which saves that one instant the way Download any reel saves a reel. Nothing saves
+     * unless the button is tapped. Off to start.
+     */
+    public static final BooleanSetting SAVE_INSTANTS_BUTTON =
+            new BooleanSetting("hushgram_save_instants_button", FALSE);
+
+    /**
      * The New group button beside the share sheet's search bar, whichever form Instagram gives it,
      * and the button that sends to the people you picked there as a group. Off to start.
      */

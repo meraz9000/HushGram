@@ -174,7 +174,7 @@ internal fun BytecodePatchContext.hideMessageBoxButtons(site: MessageBoxSite) {
  * constructor isn't that. Each id is loaded once, handed to the view lookup, and the result stored
  * straight into a View field of [owner] on the holder itself.
  */
-private fun boxLookups(owner: String, constructor: Method): Triple<FieldReference, FieldReference, FieldReference>? {
+internal fun boxLookups(owner: String, constructor: Method): Triple<FieldReference, FieldReference, FieldReference>? {
     val code = boxCode(constructor)
     val self = (constructor.implementation?.registerCount ?: return null) -
         constructor.parameterTypes.sumOf { if (it == "J" || it == "D") 2 else 1 } - 1

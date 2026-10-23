@@ -36,7 +36,8 @@ final class MessagesCategory {
                 || build.contains(PatchFamily.SCREENSHOT_BLOCK)
                 || build.contains(PatchFamily.KEEP_IN_CHAT)
                 || build.contains(PatchFamily.ASK_BEFORE_CALL)
-                || build.contains(PatchFamily.MESSAGE_BOX)) {
+                || build.contains(PatchFamily.MESSAGE_BOX)
+                || build.contains(PatchFamily.SAVE_INSTANTS_BUTTON)) {
             PreferenceCategory messages = category(screen, L10n.t("Messages"), SettingsIcons.CHATS,
                     L10n.t("Keep your chats private and your inbox clear of extras."));
             if (build.contains(PatchFamily.NOTES_ROW)) {
@@ -60,6 +61,13 @@ final class MessagesCategory {
                 messages.addPreference(toggle(context, Settings.HIDE_INSTANTS, L10n.t("Hide Instants"),
                         L10n.t("Removes the stack of Instants (quick photos from friends) from your messages. "
                                 + "Restart Instagram to see the change.")));
+            }
+            if (build.contains(PatchFamily.SAVE_INSTANTS_BUTTON)) {
+                messages.addPreference(toggle(context, Settings.SAVE_INSTANTS_BUTTON,
+                        L10n.t("Save button on instants"),
+                        L10n.t("Puts a Save button in the reply bar under an instant you're watching. A tap "
+                                + "saves that one photo or video to your gallery, the way Download saves a reel. "
+                                + "Nothing saves unless you tap.")));
             }
             if (build.contains(PatchFamily.THREAD_SEEN)) {
                 messages.addPreference(toggle(context, Settings.READ_WITHOUT_SEEN_RECEIPT,

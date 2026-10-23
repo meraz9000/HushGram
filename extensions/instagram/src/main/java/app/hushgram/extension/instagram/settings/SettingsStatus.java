@@ -240,6 +240,11 @@ public final class SettingsStatus {
         return false;
     }
 
+    /** Rewritten by the Save button on instants patch. */
+    public static boolean saveInstantsButton() {
+        return false;
+    }
+
     public static boolean profileTabs() {
         return false;
     }
