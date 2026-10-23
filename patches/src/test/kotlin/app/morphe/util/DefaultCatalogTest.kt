@@ -210,6 +210,7 @@ class DefaultCatalogTest {
         stopStoryAutoAdvancePatch,
         stopSwipeToCreatePatch,
         stopTabSwipingPatch,
+        swipeToProfilePatch,
         storyMentionsPatch,
         storyRingSizePatch,
         tapToPlayPatch,
