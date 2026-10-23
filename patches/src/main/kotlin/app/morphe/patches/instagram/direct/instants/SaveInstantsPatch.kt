@@ -41,7 +41,7 @@ internal const val ROOM_LOADER =
 
 @Suppress("unused")
 val saveInstantsPatch = bytecodePatch(
-    name = PATCH,
+    name = "Save button on instants",
     description = "Puts a Save button in the reply bar under an instant you're watching. A tap saves that one " +
         "photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Starts off. " +
         "Turn it on in HushGram settings > Messages.",
