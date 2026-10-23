@@ -226,7 +226,6 @@ class DefaultCatalogTest {
         longPressZoomPatch,
         roundedPostCornersPatch,
         fullScreenBarsPatch,
-        swipeToProfilePatch,
     )
 
     private val prior = listOf<Patch<*>>(

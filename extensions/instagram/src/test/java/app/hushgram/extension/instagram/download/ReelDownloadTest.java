@@ -401,6 +401,7 @@ public class ReelDownloadTest {
         assertTrue(String.valueOf(HookStatus.report()), String.valueOf(HookStatus.report()).contains("saved audio 1"));
         assertEquals("sound.mp4", Uri.parse(DashManifest.bestAudio(DashManifest.parse(WITH_SOUND)).url).getLastPathSegment());
 
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
         ShadowToast.reset();
         Item.manifest = WITH_SOUND.replaceAll("<AdaptationSet mimeType=\"audio/mp4\">.*?</AdaptationSet>", "");
         assertTrue(ReelDownload.save(Ours.HUSHGRAM_DOWNLOAD_AUDIO, new Object(), activity));
