@@ -33,12 +33,25 @@ public final class InstantsContinuation {
     /** Builds one continuation for the interface [descriptor] names, or null. */
     @Nullable
     public static Object create(@Nullable String descriptor) {
+        return create(descriptor, null);
+    }
+
+    /**
+     * Builds one continuation for [descriptor], answering [completed]'s own coroutine context
+     * when a real capture's continuation is at hand. The state machine Instagram builds around
+     * this continuation reads its context in its constructor; an empty context object would do,
+     * but the camera's own is the one the call was designed around, and it keeps its job and
+     * dispatcher.
+     */
+    @Nullable
+    public static Object create(@Nullable String descriptor, @Nullable Object completed) {
         if (descriptor == null || !descriptor.startsWith("L") || !descriptor.endsWith(";")) {
             return null;
         }
         try {
             String binary = descriptor.substring(1, descriptor.length() - 1).replace('/', '.');
             Class<?> type = Class.forName(binary);
+            Object supplied = contextOf(type, completed);
             Class<?> contextType = contextType(type);
             InvocationHandler context = (proxy, method, args) -> {
                 if (method.getName().equals("hashCode")) return System.identityHashCode(proxy);
@@ -55,9 +68,11 @@ public final class InstantsContinuation {
                 }
                 return null;
             };
-            Object emptyContext = contextType == null
-                ? null
-                : Proxy.newProxyInstance(contextType.getClassLoader(), new Class<?>[]{contextType}, context);
+            Object emptyContext = supplied == null
+                ? (contextType == null
+                    ? null
+                    : Proxy.newProxyInstance(contextType.getClassLoader(), new Class<?>[]{contextType}, context))
+                : supplied;
             InvocationHandler handler = (proxy, method, args) -> {
                 if (method.getName().equals("hashCode")) return System.identityHashCode(proxy);
                 if (method.getName().equals("equals")) return proxy == args[0];
@@ -72,10 +87,24 @@ public final class InstantsContinuation {
             };
             Object continuation = Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, handler);
             Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
-                SOURCE, () -> "continuation built over " + binary);
+                SOURCE, () -> "continuation built over " + binary + ", context "
+                    + (supplied != null ? "from the camera" : emptyContext == null ? "missing" : "empty"));
             return continuation;
         } catch (Throwable t) {
             Logger.printException(() -> "Could not build the capture continuation", t);
+            return null;
+        }
+    }
+
+    /** [completed]'s own context, read through the continuation interface, or null. */
+    @Nullable
+    private static Object contextOf(Class<?> type, @Nullable Object completed) {
+        if (completed == null) {
+            return null;
+        }
+        try {
+            return type.getMethod("getContext").invoke(completed);
+        } catch (Throwable t) {
             return null;
         }
     }

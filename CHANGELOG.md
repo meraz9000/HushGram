@@ -6,7 +6,7 @@ Every HushGram release, newest first.
 
 ### Features
 
-* **Instagram - Add photos from the gallery to instants:** new patch, kept out of simple mode. A gallery button on the Instants camera opens the system photo picker, and the picked picture runs through the camera's own send pipeline, so the instant preview opens ready to send. Starts off. Turn it on in HushGram settings > Messages.
+* **Instagram - Add photos from the gallery to instants:** new patch, kept out of simple mode. A gallery button on the Instants camera opens the system photo picker. After one normal Instants photo, the picked picture runs through the camera's own capture callback, so the instant preview opens ready to send. Starts off. Turn it on in HushGram settings > Messages.
 
 * **Instagram - Save button on stories and instants:** new patch, kept out of simple mode. A switch under Messages puts a Save button in the reply bar under the story or instant you're watching, and a tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Asked for in testing the Instants feed.
 

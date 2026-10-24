@@ -15,6 +15,7 @@ import app.morphe.patches.instagram.misc.extension.enableStatus
 import app.morphe.patches.instagram.misc.extension.requireStatusMethod
 import app.morphe.patches.instagram.misc.settings.settingsPatch
 import app.morphe.patches.shared.compat.AppCompatibilities
+import app.morphe.util.cloneMutable
 import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.iface.Method
@@ -23,6 +24,7 @@ import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.reference.StringReference
+import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
 internal const val GALLERY = "$EXTENSION_PACKAGE/download/InstantsGallery;"
 internal const val CAMERA_HOOK = "$GALLERY->cameraOpened(Ljava/lang/Object;)V"
@@ -30,9 +32,7 @@ internal const val CAMERA_HOOK = "$GALLERY->cameraOpened(Ljava/lang/Object;)V"
  * Adds the transparent photo-picker activity, [GalleryPickActivity], to Instagram's manifest:
  * exportless, on the framework's translucent theme so the system picker opens over the camera.
  *
- * <p>Not yet depended on by a named patch. The gallery glyph's patch arrives with the capture
- * bridge, and the catalog's reviewed decisions must not name a patch that does nothing; until
- * then this resource patch stays unreferenced. It is idempotent, so a build that somehow already
+ * <p>The gallery glyph's patch depends on it. It is idempotent, so a build that somehow already
  * declares the activity keeps one entry.
  */
 internal val galleryPickActivityPatch = resourcePatch {
@@ -73,9 +73,9 @@ internal const val GALLERY_PATCH = "Add photos from the gallery to instants"
 @Suppress("unused")
 val galleryInstantsPatch = bytecodePatch(
     name = "Add photos from the gallery to instants",
-    description = "Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the instant " +
-        "preview with it, ready to send, the same pipeline a shutter press uses. Starts off. Turn it on in " +
-        "HushGram settings > Messages.",
+    description = "Puts a gallery button on the Instants camera. After one normal Instants photo, pick a " +
+        "picture from your phone and Instagram opens the instant preview with it, ready to send, the same " +
+        "pipeline a shutter press uses. Starts off. Turn it on in HushGram settings > Messages.",
     default = false,
 ) {
     category("Messages")
@@ -90,6 +90,15 @@ val galleryInstantsPatch = bytecodePatch(
         val handoff = findCaptureHandoff()
         fillContinuationStub(handoff)
         fillPublishStub(handoff)
+        fillReplayStub(handoff)
+        hookCaptureArgs(handoff)
+        hookCaptureCallback(findCaptureCallback())
+        val fileHandoff = findFileHandoff()
+        fillFileStub(fileHandoff)
+        val accessor = stateAccessor
+            ?: throw PatchException("Save button on instants: no state accessor")
+        fillStateStub(accessor)
+        fillStateSourceStub(handoff, accessor)
         enableStatus("galleryInstants")
     }
 }
@@ -117,6 +126,76 @@ internal fun BytecodePatchContext.findCaptureHandoff(): Method {
     return handoffs.singleOrNull() ?: throw PatchException(
         "Save button on instants: expected one capture handoff on $CAMERA_VM, found " +
             if (handoffs.isEmpty()) "none" else handoffs.joinToString { it.name },
+    )
+}
+
+/**
+ * The camera's file-based handoff: the other static method of [CAMERA_VM] taking the context
+ * and a Bitmap, thirteen parameters wide, with a File, a Float and two ints where the frame
+ * pipeline has its stamps. A picked picture exists as a file already, so this is the door it
+ * should take.
+ */
+internal fun BytecodePatchContext.findFileHandoff(): Method {
+    val vm = classDefByOrNull(CAMERA_VM) ?: throw PatchException("Save button on instants: no $CAMERA_VM")
+    val handoffs = vm.methods.filter { method ->
+        AccessFlags.STATIC.isSet(method.accessFlags) &&
+            method.parameterTypes.size == 13 &&
+            method.parameterTypes.getOrNull(0)?.toString() == CONTEXT &&
+            method.parameterTypes.getOrNull(1)?.toString() == BITMAP
+    }
+    return handoffs.singleOrNull() ?: throw PatchException(
+        "Save button on instants: expected one file handoff on $CAMERA_VM, found " +
+            if (handoffs.isEmpty()) "none" else handoffs.joinToString { it.name },
+    )
+}
+
+/** The state accessor found by [hookStateAccessor], kept for the state getter's fill. */
+internal var stateAccessor: Method? = null
+
+/**
+ * Fills the extension's state getter: the accessor the live camera calls, run on the viewmodel
+ * the capture record lent us, so its own initialized state comes back.
+ */
+internal fun BytecodePatchContext.fillStateStub(accessor: Method) {
+    val stub = mutableClassDefBy(GALLERY).methods.single {
+        it.name == "stateOf" && it.returnType == "Ljava/lang/Object;" &&
+            it.parameterTypes.map(Any::toString) == listOf("Ljava/lang/Object;")
+    }
+    val descriptor = "(" + accessor.parameterTypes.joinToString("") + ")" + accessor.returnType
+    stub.addInstructions(
+        0,
+        """
+            check-cast p0, $CAMERA_VM
+            invoke-static {p0}, ${accessor.definingClass}->${accessor.name}$descriptor
+            move-result-object v0
+            return-object v0
+        """,
+    )
+}
+
+/**
+ * Fills the extension's state-source getter: the field A04 reads from the state [A01] returns,
+ * found by its type on the state class rather than by guessing its obfuscated name.
+ */
+internal fun BytecodePatchContext.fillStateSourceStub(handoff: Method, accessor: Method) {
+    val stub = mutableClassDefBy(GALLERY).methods.single {
+        it.name == "stateSourceOf" && it.returnType == "Ljava/lang/Object;" &&
+            it.parameterTypes.map(Any::toString) == listOf("Ljava/lang/Object;")
+    }
+    val stateType = accessor.returnType.toString()
+    val sourceType = handoff.parameterTypes[4].toString()
+    val fields = classDefBy(stateType).fields.filter { it.type.toString() == sourceType }
+    val field = fields.singleOrNull() ?: throw PatchException(
+        "Save button on instants: expected one $sourceType field on $stateType, found " +
+            if (fields.isEmpty()) "none" else fields.joinToString { it.name },
+    )
+    stub.addInstructions(
+        0,
+        """
+            check-cast p0, $stateType
+            iget-object v0, p0, $stateType->${field.name}:$sourceType
+            return-object v0
+        """,
     )
 }
 
@@ -163,9 +242,114 @@ internal fun BytecodePatchContext.audienceDefault(type: String, label: String): 
  * audience config defaulted to followers. The camera state is derived inside the call itself.
  * The command pieces the shutter would supply (a capture stamp and mentions) are passed empty.
  */
-internal fun BytecodePatchContext.fillPublishStub(handoff: Method) {
+internal fun BytecodePatchContext.fillPublishStub(handoff: Method) = fillCaptureCall(handoff, "publish")
+
+/** The replay stub takes the same call's arguments, so it is filled the same way. */
+internal fun BytecodePatchContext.fillReplayStub(handoff: Method) = fillCaptureCall(handoff, "replay")
+
+/**
+ * Records every real capture call's arguments as it starts: the handoff's own parameters pass
+ * through to the extension, which keeps the last set for a picked picture to replay.
+ */
+internal fun BytecodePatchContext.hookCaptureArgs(handoff: Method) {
+    val capture = mutableClassDefBy(handoff.definingClass).methods.single {
+        it.name == handoff.name && it.parameterTypes == handoff.parameterTypes
+    }
+    // The extension's own descriptor: its parameters are Objects where the handoff's are
+    // Instagram's own types, and the call has to name the method that exists.
+    val call = "$GALLERY->captureArgs" +
+        "(Landroid/content/Context;Landroid/graphics/Bitmap;Ljava/lang/Object;Ljava/lang/Object;" +
+        "Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;" +
+        "Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;JZ)V"
+    capture.addInstructions(0, "invoke-static/range {p0 .. p14}, $call")
+}
+
+/**
+ * The camera's capture callback: the eight-argument `invoke` whose body builds the
+ * `$onCaptured$3` state machine. It is the path a shutter press takes; a picked picture can run
+ * it with only its first two arguments replaced, so Instagram builds the options and state.
+ */
+internal fun BytecodePatchContext.findCaptureCallback(): Method {
+    val found = mutableListOf<Method>()
+    classDefForEach { classDef ->
+        classDef.methods.forEach { method ->
+            if (method.name == "invoke" &&
+                method.parameterTypes.size == 8 &&
+                method.parameterTypes.all { it.toString() == "Ljava/lang/Object;" } &&
+                method.returnType == "Ljava/lang/Object;" &&
+                method.implementation?.instructions?.toList().orEmpty().any { instruction ->
+                    val reference = (instruction as? ReferenceInstruction)?.reference
+                    reference is TypeReference &&
+                        reference.type ==
+                        "Lcom/instagram/quicksnap/camera/domain/QuickSnapCameraViewModel\$onCaptured\$3;"
+                } == true
+            ) {
+                found += method
+            }
+        }
+    }
+    return found.singleOrNull() ?: throw PatchException(
+        "Save button on instants: expected one capture callback, found " +
+            if (found.isEmpty()) "none" else found.joinToString { "${it.definingClass}->invoke" },
+    )
+}
+
+/**
+ * Records the capture callback's instance and arguments at its entry. The extension replays it
+ * with the picked picture, so Instagram's own pipeline builds the options and state.
+ */
+internal fun BytecodePatchContext.hookCaptureCallback(callback: Method) {
+    val mutable = mutableClassDefBy(callback.definingClass).methods.single {
+        it.name == callback.name && it.parameterTypes == callback.parameterTypes
+    }
+    val call = "$GALLERY->captureInvoke" +
+        "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;" +
+        "Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V"
+    mutable.addInstructions(0, "invoke-static/range {p0 .. p8}, $call")
+}
+
+/**
+ * Fills the extension's file stub: the camera's file-based handoff with the picked picture's
+ * file, the viewmodel's own state from [stateOf], and the empty pieces only a camera session
+ * carries. The stub's parameters mirror the call's, so the body is check-casts and one invoke.
+ */
+internal fun BytecodePatchContext.fillFileStub(handoff: Method) {
     val stub = mutableClassDefBy(GALLERY).methods.single {
-        it.name == "publish" && it.returnType == "Z" && it.parameterTypes.size == 14
+        it.name == "publishFile" && it.returnType == "Z" && it.parameterTypes.size == 13
+    }
+    val types = handoff.parameterTypes.map(Any::toString)
+    val descriptor = "(" + handoff.parameterTypes.joinToString("") + ")" + handoff.returnType
+    val call = "${handoff.definingClass}->${handoff.name}$descriptor"
+    fun cast(register: Int) = "check-cast p$register, ${types[register]}"
+    stub.addInstructions(
+        0,
+        """
+            ${cast(2)}
+            ${cast(3)}
+            ${cast(4)}
+            ${cast(5)}
+            ${cast(7)}
+            invoke-static/range {p0 .. p13}, $call
+            const/4 v0, 0x1
+            return v0
+        """,
+    )
+}
+
+private fun BytecodePatchContext.fillCaptureCall(handoff: Method, stubName: String) {
+    val classDef = mutableClassDefBy(GALLERY)
+    val original = classDef.methods.single {
+        it.name == stubName && it.returnType == "Z" && it.parameterTypes.size == 14
+    }
+    // The clone copies every parameter into a low register, and those copies must land below
+    // the new parameter block. Fewer than fifteen spare registers put the copies over p0..p4:
+    // the viewmodel was replaced by the high half of the long and A04 read a field off null.
+    // The call then passes the low copies, with only slots 2 and 5 replaced; moves whose
+    // destination is a parameter alias are dropped, so the substitutes are true locals.
+    val stub = original.cloneMutable(additionalRegisters = 30)
+    classDef.methods.apply {
+        remove(original)
+        add(stub)
     }
     val types = handoff.parameterTypes.map(Any::toString)
     val options = types[2]
@@ -177,34 +361,25 @@ internal fun BytecodePatchContext.fillPublishStub(handoff: Method) {
     val configDescriptor = "(" + configCtor.parameterTypes.joinToString("") + ")V"
     val descriptor = "(" + handoff.parameterTypes.joinToString("") + ")" + handoff.returnType
     val call = "${handoff.definingClass}->${handoff.name}$descriptor"
+    // The objects are built in the spare low registers, and only the options and config slots
+    // are replaced; every other argument stays the parameter the extension handed over.
     stub.addInstructions(
-        0,
+        stub.parameterTypes.size,
         """
-            new-instance v2, $options
-            invoke-direct {v2}, $options-><init>()V
-            new-instance v3, $config
-            sget-object v4, ${followerOnly.definingClass}->${followerOnly.name}:${followerOnly.type}
-            const/4 v5, 0x0
-            const/4 v6, 0x0
-            const/4 v7, 0x0
-            const/4 v8, 0x0
-            const/4 v9, 0x0
-            const/4 v10, 0x0
-            const/4 v11, 0x0
-            invoke-direct/range {v3 .. v11}, ${configCtor.definingClass}-><init>$configDescriptor
-            move-result-object v5
-            move-object v0, p0
-            move-object v1, p2
-            move-object v3, p1
-            const/4 v4, 0x0
-            const/4 v6, 0x0
-            const-string v7, ""
-            const-string v8, ""
-            move-object v9, p9
-            const/4 v10, 0x0
-            const/4 v11, 0x0
-            const-wide/16 v12, 0x0
-            const/4 v14, 0x0
+            new-instance v15, $options
+            invoke-direct {v15}, $options-><init>()V
+            new-instance v16, $config
+            sget-object v17, ${followerOnly.definingClass}->${followerOnly.name}:${followerOnly.type}
+            const/16 v18, 0x0
+            const/16 v19, 0x0
+            const/16 v20, 0x0
+            const/16 v21, 0x0
+            const/16 v22, 0x0
+            const/16 v23, 0x0
+            const/16 v24, 0x0
+            invoke-direct/range {v16 .. v24}, ${configCtor.definingClass}-><init>$configDescriptor
+            move-object/from16 v2, v15
+            move-object/from16 v5, v16
             invoke-static/range {v0 .. v14}, $call
             const/4 v0, 0x1
             return v0
@@ -270,6 +445,7 @@ internal fun BytecodePatchContext.hookStateAccessor() {
         "Save button on instants: expected one viewmodel state accessor, found " +
             if (accessors.isEmpty()) "none" else accessors.joinToString { it.name },
     )
+    stateAccessor = accessor
     val mutable = mutableClassDefBy(accessor.definingClass).methods.single {
         it.name == accessor.name && it.parameterTypes == accessor.parameterTypes
     }
