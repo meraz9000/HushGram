@@ -27,8 +27,12 @@ internal object Fixtures {
      * How many builds of the declared Instagram version the fixture folder holds: the declared
      * build and the others. The one number a new variant drop changes; a test that checks every
      * build asserts against it, so a missing fixture still fails it.
+     *
+     * *A development checkout that only tests the ABI its devices run sets
+     * `HUSHGRAM_FIXTURE_BUILDS` to the count its fixture folder holds, one for an arm64 phone,
+     * and holds only that build's fixture. The default stays every build the maintainer reads.*
      */
-    const val BUILDS = 4
+    val BUILDS = System.getenv("HUSHGRAM_FIXTURE_BUILDS")?.trim()?.toIntOrNull() ?: 4
 
     /** The builds besides the declared one. */
     val OTHER_BUILDS = BUILDS - AppCompatibilities.instagram().flatMap { it.targets }.sumOf { it.versionCodes.orEmpty().size }
@@ -50,8 +54,11 @@ internal object Fixtures {
      * declared build's own folder is left out. Instagram ships one version as several builds
      * (452.1.0.53.64 has one each for arm64, armeabi-v7a, x86 and x86_64), each compiled on its
      * own, and the patches find what they change by its shape, so these are read too (#77, #95).
+     * A checkout testing one ABI only sets `HUSHGRAM_FIXTURE_BUILDS` and holds one fixture, so
+     * there are no others to read.
      */
     fun otherBuilds(): List<File> {
+        if (OTHER_BUILDS <= 0) return emptyList()
         val directory = folder()
         val folders = directory.listFiles()?.filter { it.isDirectory }.orEmpty()
         val found = AppCompatibilities.instagram().flatMap { it.targets }.flatMap { target ->
