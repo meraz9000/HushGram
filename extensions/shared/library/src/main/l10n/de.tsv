@@ -261,6 +261,8 @@ Takes the search bar and its Filter button off the top of your messages, the Met
 Hide Instants	Instants ausblenden
 Removes the stack of Instants (quick photos from friends) from your messages. Restart Instagram to see the change.	Entfernt den Stapel mit Instants (schnelle Fotos von Freunden) aus deinen Nachrichten. Starte Instagram neu, um die Änderung zu sehen.
 Save button on stories and instants	Save-Button bei Stories und Instants
+Add photos from the gallery to instants	Fotos aus der Galerie zu Instants hinzufügen
+Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the instant preview with it, ready to send, the same pipeline a shutter press uses.	Fügt einen Galerie-Button zur Instants-Kamera hinzu. Wähle ein Foto, und Instagram öffnet die Instant-Vorschau damit, bereit zum Senden, über dieselbe Pipeline wie ein Auslöser.
 Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.	Fügt einen Save-Button in die Antwortleiste unter der Story oder dem Instant ein, das du gerade ansiehst. Ein Tipp speichert dieses eine Foto oder Video in deine Galerie, so wie Download ein Reel speichert. Ohne Tippen wird nichts gespeichert.
 Read messages without the seen receipt	Nachrichten ohne Gesehen-Bestätigung lesen
 Opening a chat doesn't tell people you've seen their messages, and you still see when they've seen yours. To let one chat know, long press it in your messages and tap Mark as read.	Wenn du einen Chat öffnest, erfährt niemand, dass du die Nachrichten gesehen hast, und du siehst weiterhin, wann andere deine gesehen haben. Soll ein Chat es doch erfahren, halte ihn in deinen Nachrichten gedrückt und tippe auf Als gelesen markieren.
@@ -1170,3 +1172,4 @@ Puts a music icon beside a reel. Tap it and the Reels tab skips other reels usin
 Hidden sounds	Ausgeblendete Sounds
 The sounds you hid with the music icon. Uncheck one to see its reels again.	Die Sounds, die du mit dem Musiksymbol ausgeblendet hast. Nimm bei einem den Haken weg, um seine Reels wieder zu sehen.
 No sounds are hidden yet. Turn on Hide reels by sound, then tap the music icon beside a reel.	Noch keine Sounds ausgeblendet. Schalte „Reels nach Sound ausblenden“ ein und tippe dann auf das Musiksymbol neben einem Reel.
+That photo couldn't be read	Dieses Foto konnte nicht gelesen werden

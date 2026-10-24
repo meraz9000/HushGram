@@ -151,7 +151,7 @@ internal fun BytecodePatchContext.hookInstantRender(render: Method) {
         it.name == render.name && it.parameterTypes == render.parameterTypes
     }
     val base = mutable.implementation!!.registerCount - mutable.parameterTypes.sumOf {
-        if (it == "J" || it == "D") 2 else 1
+        if (it.toString() == "J" || it.toString() == "D") 2 else 1
     }
     val item = base + 2
     val call = if (item <= 15) "invoke-static { v$item }, $ON_VIEW" else "invoke-static/range { v$item .. v$item }, $ON_VIEW"

@@ -10,6 +10,7 @@ import app.morphe.patches.instagram.direct.calls.askBeforeCallPatch
 import app.morphe.patches.instagram.direct.messagebox.messageBoxPatch
 import app.morphe.patches.instagram.feed.confirm.askBeforeLikePatch
 import app.morphe.patches.instagram.feed.confirm.askBeforeRefreshPatch
+import app.morphe.patches.instagram.direct.instants.galleryInstantsPatch
 import app.morphe.patches.instagram.direct.instants.hideInstantsPatch
 import app.morphe.patches.instagram.direct.instants.saveInstantsPatch
 import app.morphe.patches.instagram.direct.presence.showLastActivePatch
@@ -251,6 +252,7 @@ class DefaultCatalogTest {
 
     private val optIn = listOf<Patch<*>>(
         changeVersionCodePatch,
+        galleryInstantsPatch,
         installNextToInstagramPatch,
         pureBlackPatch,
         saveInstantsPatch,
@@ -268,14 +270,14 @@ class DefaultCatalogTest {
     }
 
     @Test fun patchTimeChangesAndUnreadyFeaturesStayOptIn() {
-        assertEquals(5, optIn.size)
+        assertEquals(6, optIn.size)
         optIn.forEach { assertEquals(it.name, false, it.default) }
     }
 
     @Test fun generatedCatalogMatchesAllReviewedDeclarations() {
         val all = prior + neutral + optIn
         val declarations = all.associate { it.name!! to it.default }
-        assertEquals("every named patch needs one reviewed decision", 115, all.size)
+        assertEquals("every named patch needs one reviewed decision", 116, all.size)
         assertEquals("the review must not name a patch twice", all.size, declarations.size)
         val file = File("patches-list.json").takeIf(File::isFile) ?: File("../patches-list.json")
         val rows = JsonParser.parseString(file.readText()).asJsonObject.getAsJsonArray("patches")

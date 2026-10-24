@@ -43,6 +43,44 @@
       "options": []
     },
     {
+      "name": "Add photos from the gallery to instants",
+      "description": "Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the instant preview with it, ready to send, the same pipeline a shutter press uses. Starts off. Turn it on in HushGram settings > Messages.",
+      "category": "Messages",
+      "use": false,
+      "dependencies": [
+        "BytecodePatch",
+        "HushGram settings",
+        "ResourcePatch"
+      ],
+      "compatiblePackages": {
+        "com.instagram.android": [
+          "452.1.0.53.64"
+        ]
+      },
+      "compatibility": [
+        {
+          "name": "Instagram",
+          "packageName": "com.instagram.android",
+          "description": null,
+          "appIconColor": 14757996,
+          "signatures": [
+            "3a10c50c18ba937506c2875e9047be74f8fd8b86fae2ff9feaa50a81fcb4c014",
+            "5f3e50f435583c9ae626302a71f7340044087a7e2c60adacfc254205a993e305"
+          ],
+          "targets": [
+            {
+              "version": "452.1.0.53.64",
+              "experimental": false,
+              "versionCodes": {
+                "ARM64_V8A": 385811006
+              }
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
       "name": "Allow screenshots",
       "description": "Lets you take screenshots and record your screen where Instagram normally blocks it, such as disappearing photos and videos in chats. Starts off. Turn it on in HushGram settings > Messages.",
       "category": "Messages",

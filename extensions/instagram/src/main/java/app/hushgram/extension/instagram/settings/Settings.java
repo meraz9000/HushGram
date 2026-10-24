@@ -816,6 +816,13 @@ public class Settings extends BaseSettings {
             new BooleanSetting("hushgram_save_instants_button", FALSE);
 
     /**
+     * A gallery button on the Instants camera ({@link app.hushgram.extension.instagram.download.InstantsGallery}).
+     * Pick a photo and Instagram opens the instant preview with it, ready to send. Off to start.
+     */
+    public static final BooleanSetting GALLERY_INSTANTS =
+            new BooleanSetting("hushgram_gallery_instants", FALSE);
+
+    /**
      * The New group button beside the share sheet's search bar, whichever form Instagram gives it,
      * and the button that sends to the people you picked there as a group. Off to start.
      */

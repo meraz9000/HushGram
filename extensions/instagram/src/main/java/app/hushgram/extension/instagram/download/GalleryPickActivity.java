@@ -49,6 +49,8 @@ public final class GalleryPickActivity extends Activity {
                 pick.addCategory(Intent.CATEGORY_OPENABLE);
                 pick.setType("image/*");
             }
+            Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                SOURCE, () -> "picker launched: " + pick.getAction() + " on sdk " + Build.VERSION.SDK_INT);
             startActivityForResult(pick, REQUEST);
         } catch (Throwable t) {
             Logger.printException(() -> "Could not open the photo picker", t);
@@ -59,6 +61,8 @@ public final class GalleryPickActivity extends Activity {
     @Override
     protected void onActivityResult(int request, int result, @Nullable Intent data) {
         super.onActivityResult(request, result, data);
+        Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+            SOURCE, () -> "result: request " + request + ", code " + result + ", data " + (data == null ? "null" : String.valueOf(data.getData())));
         if (request != REQUEST) {
             finish();
             return;
@@ -66,11 +70,16 @@ public final class GalleryPickActivity extends Activity {
         try {
             Uri picked = result == RESULT_OK && data != null ? data.getData() : null;
             Bitmap bitmap = picked == null ? null : decode(picked);
+            Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                SOURCE, () -> "decoded: " + (bitmap == null ? "null" : bitmap.getWidth() + "x" + bitmap.getHeight()));
             if (bitmap == null) {
                 if (result == RESULT_OK) failed();
                 return;
             }
-            if (!InstantsGallery.capture(this, bitmap)) {
+            boolean taken = InstantsGallery.capture(this, bitmap);
+            Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                SOURCE, () -> "handoff " + (taken ? "went in" : "refused"));
+            if (!taken) {
                 failed();
             }
         } catch (Throwable t) {
@@ -93,6 +102,8 @@ public final class GalleryPickActivity extends Activity {
             return null;
         }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                SOURCE, () -> "bounds unreadable: " + bounds.outWidth + "x" + bounds.outHeight);
             return null;
         }
         int sample = 1;

@@ -37,7 +37,8 @@ final class MessagesCategory {
                 || build.contains(PatchFamily.KEEP_IN_CHAT)
                 || build.contains(PatchFamily.ASK_BEFORE_CALL)
                 || build.contains(PatchFamily.MESSAGE_BOX)
-                || build.contains(PatchFamily.SAVE_INSTANTS_BUTTON)) {
+                || build.contains(PatchFamily.SAVE_INSTANTS_BUTTON)
+                || build.contains(PatchFamily.GALLERY_INSTANTS)) {
             PreferenceCategory messages = category(screen, L10n.t("Messages"), SettingsIcons.CHATS,
                     L10n.t("Keep your chats private and your inbox clear of extras."));
             if (build.contains(PatchFamily.NOTES_ROW)) {
@@ -61,6 +62,12 @@ final class MessagesCategory {
                 messages.addPreference(toggle(context, Settings.HIDE_INSTANTS, L10n.t("Hide Instants"),
                         L10n.t("Removes the stack of Instants (quick photos from friends) from your messages. "
                                 + "Restart Instagram to see the change.")));
+            }
+            if (build.contains(PatchFamily.GALLERY_INSTANTS)) {
+                messages.addPreference(toggle(context, Settings.GALLERY_INSTANTS,
+                        L10n.t("Add photos from the gallery to instants"),
+                        L10n.t("Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the "
+                                + "instant preview with it, ready to send, the same pipeline a shutter press uses.")));
             }
             if (build.contains(PatchFamily.SAVE_INSTANTS_BUTTON)) {
                 messages.addPreference(toggle(context, Settings.SAVE_INSTANTS_BUTTON,

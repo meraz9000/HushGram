@@ -262,6 +262,8 @@ Takes the search bar and its Filter button off the top of your messages, the Met
 Hide Instants	Instants 숨기기
 Removes the stack of Instants (quick photos from friends) from your messages. Restart Instagram to see the change.	메시지에서 Instants(친구가 보내는 빠른 사진) 묶음을 없앱니다. 변경 사항을 보려면 Instagram을 다시 시작하세요.
 Save button on stories and instants	스토리 및 인스턴트 저장 버튼
+Add photos from the gallery to instants	갤러리 사진을 인스턴트에 추가
+Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the instant preview with it, ready to send, the same pipeline a shutter press uses.	인스턴트 카메라에 갤러리 버튼을 넣습니다. 사진을 고르면 셔터를 누른 것과 같은 경로로, 보낼 준비가 된 인스턴트 미리보기가 열립니다.
 Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.	시청 중인 스토리나 인스턴트 아래 답장 바에 저장 버튼을 넣습니다. 탭하면 그 하나의 사진이나 동영상이 릴스를 저장하는 것과 같은 방식으로 갤러리에 저장됩니다. 탭하지 않으면 아무것도 저장되지 않습니다.
 Read messages without the seen receipt	읽음 표시 없이 메시지 읽기
 Opening a chat doesn't tell people you've seen their messages, and you still see when they've seen yours. To let one chat know, long press it in your messages and tap Mark as read.	채팅을 열어도 상대방에게 메시지를 봤다는 사실이 전달되지 않으며, 상대방이 내 메시지를 봤는지는 계속 확인할 수 있습니다. 한 채팅에만 알리려면 메시지에서 그 채팅을 길게 누르고 읽음으로 표시를 누르세요
@@ -1169,3 +1171,4 @@ Puts a music icon beside a reel. Tap it and the Reels tab skips other reels usin
 Hidden sounds	숨긴 사운드
 The sounds you hid with the music icon. Uncheck one to see its reels again.	음악 아이콘으로 숨긴 사운드입니다. 체크를 해제하면 그 사운드의 릴스가 다시 보입니다.
 No sounds are hidden yet. Turn on Hide reels by sound, then tap the music icon beside a reel.	아직 숨긴 사운드가 없습니다. 사운드별로 릴스 숨기기를 켠 다음 릴스 옆의 음악 아이콘을 탭하세요.
+That photo couldn't be read	그 사진을 읽을 수 없습니다

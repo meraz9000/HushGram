@@ -261,6 +261,8 @@ Takes the search bar and its Filter button off the top of your messages, the Met
 Hide Instants	Instants'ı gizle
 Removes the stack of Instants (quick photos from friends) from your messages. Restart Instagram to see the change.	Mesajlarındaki Instants yığınını (arkadaşlardan hızlı fotoğraflar) kaldırır. Değişikliği görmek için Instagram'ı yeniden başlat.
 Save button on stories and instants	Hikayeler ve Instants için kaydet düğmesi
+Add photos from the gallery to instants	Galeriden Instants'a foto ekle
+Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the instant preview with it, ready to send, the same pipeline a shutter press uses.	Instants kamerasına bir galeri düğmesi koyar. Bir fotoğraf seçin, Instagram onunla göndermeye hazır Instant önizlemesini açar; deklanşörle aynı yoldan.
 Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.	İzlediğin bir hikayenin veya Instant'ın altındaki yanıt çubuğuna bir Kaydet düğmesi koyar. Bir dokunuş o tek fotoğrafı veya videoyu galerine kaydeder, tıpkı Download'ün bir reel kaydetmesi gibi. Dokunmadıkça hiçbir şey kaydedilmez.
 Read messages without the seen receipt	Mesajları görüldü bilgisi olmadan oku
 Opening a chat doesn't tell people you've seen their messages, and you still see when they've seen yours. To let one chat know, long press it in your messages and tap Mark as read.	Bir sohbeti açtığında karşı taraf mesajlarını gördüğünü öğrenmez ve onların seninkileri ne zaman gördüğünü görmeye devam edersin. Bir sohbetin bilmesini istersen mesajlarında ona uzun bas ve Okundu olarak işaretle'ye dokun.
@@ -1170,3 +1172,4 @@ Puts a music icon beside a reel. Tap it and the Reels tab skips other reels usin
 Hidden sounds	Gizli sesler
 The sounds you hid with the music icon. Uncheck one to see its reels again.	Müzik simgesiyle gizlediğin sesler. Reel'lerini yeniden görmek için birinin işaretini kaldır.
 No sounds are hidden yet. Turn on Hide reels by sound, then tap the music icon beside a reel.	Henüz gizli ses yok. Reels'i sese göre gizle'yi aç, sonra bir reel'in yanındaki müzik simgesine dokun.
+That photo couldn't be read	Bu fotoğraf okunamadı

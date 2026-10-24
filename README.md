@@ -76,6 +76,7 @@ In Expert mode the patches are grouped under Ads, Ghost mode, Privacy, Messages,
 | Patch | What it does | Simple mode |
 |---|---|---|
 | `Accent color` | Swaps Instagram's blue on Follow buttons, links and other highlights for purple, pink, red, orange, green or teal. Restart Instagram to see a change. Starts off. Turn it on in HushGram settings > Layout. | Included |
+| `Add photos from the gallery to instants` | Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the instant preview with it, ready to send, the same pipeline a shutter press uses. Starts off. Turn it on in HushGram settings > Messages. | Opt-in |
 | `Allow screenshots` | Lets you take screenshots and record your screen where Instagram normally blocks it, such as disappearing photos and videos in chats. Starts off. Turn it on in HushGram settings > Messages. | Included |
 | `Ask before a call` | Asks you to confirm before a call starts from a chat, so a stray tap on the call button doesn't ring anyone, and can take the call buttons off the top of a chat. Both start off. Turn them on in HushGram settings > Messages. | Included |
 | `Ask before a like` | Asks you to confirm before the Like button under a post likes or unlikes it, so a stray tap doesn't do it for you. Starts off. Turn it on in HushGram settings > Feed. | Included |

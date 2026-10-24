@@ -245,6 +245,11 @@ public final class SettingsStatus {
         return false;
     }
 
+    /** Rewritten by the Add photos from the gallery to instants patch. */
+    public static boolean galleryInstants() {
+        return false;
+    }
+
     public static boolean profileTabs() {
         return false;
     }

@@ -62,7 +62,10 @@ class GalleryInstantsHookTest {
         )
     }
 
-    /** Everything the discoveries read: the viewmodel, its callers' classes, and marker holders. */
+    /**
+     * Everything the discoveries read: the viewmodel, its callers, and the classes the handoff's
+     * own types name, expanded over referenced types until nothing new arrives.
+     */
     private fun candidates(bundle: File): List<ClassDef> {
         val kept = mutableListOf<ClassDef>()
         FixtureDex.forEach(bundle) { dex ->
@@ -73,6 +76,18 @@ class GalleryInstantsHookTest {
                             method.parameterTypes.any { it.toString() == CAMERA_VM }
                     }
                 if (keep) kept += candidate
+            }
+        }
+        repeat(3) {
+            val named = kept.flatMap { candidate ->
+                candidate.methods.flatMap { method ->
+                    method.parameterTypes.map(Any::toString) + method.returnType.toString()
+                } + candidate.fields.map { it.type } + candidate.interfaces
+            }.toSet()
+            FixtureDex.forEach(bundle) { dex ->
+                for (candidate in dex.classes) {
+                    if (candidate.type in named && kept.none { it.type == candidate.type }) kept += candidate
+                }
             }
         }
         return kept
