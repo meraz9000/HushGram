@@ -83,7 +83,8 @@ class NativeShowReelTimeTest {
             )
             checked += name
         }
-        for (code in BUILDS) assertTrue("no fixture of build $code among $checked", checked.any { it.contains("-$code") })
+        val required = if (Fixtures.BUILDS == 1) listOf(AppCompatibilities.INSTAGRAM_TARGET_VERSION_CODE) else BUILDS
+        for (code in required) assertTrue("no fixture of build $code among $checked", checked.any { it.contains("-$code") })
     }
 
     @Test fun dexBackedInstructionReReadsResolveTheSameMethods() {

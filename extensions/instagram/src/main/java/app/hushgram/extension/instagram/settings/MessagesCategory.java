@@ -64,10 +64,10 @@ final class MessagesCategory {
             }
             if (build.contains(PatchFamily.SAVE_INSTANTS_BUTTON)) {
                 messages.addPreference(toggle(context, Settings.SAVE_INSTANTS_BUTTON,
-                        L10n.t("Save button on instants"),
-                        L10n.t("Puts a Save button in the reply bar under an instant you're watching. A tap "
-                                + "saves that one photo or video to your gallery, the way Download saves a reel. "
-                                + "Nothing saves unless you tap.")));
+                        L10n.t("Save button on stories and instants"),
+                        L10n.t("Puts a Save button in the reply bar under the story or instant you're watching. "
+                                + "A tap saves that one photo or video to your gallery, the way Download saves a "
+                                + "reel. Nothing saves unless you tap.")));
             }
             if (build.contains(PatchFamily.THREAD_SEEN)) {
                 messages.addPreference(toggle(context, Settings.READ_WITHOUT_SEEN_RECEIPT,

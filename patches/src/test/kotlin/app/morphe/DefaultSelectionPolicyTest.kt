@@ -23,8 +23,8 @@ class DefaultSelectionPolicyTest {
         "Install next to Instagram" to "Moves the build to a package of its own, so it installs as a second app " +
             "with its own data and sign-in instead of updating the Instagram already on the phone.",
         "Pure black dark mode" to "Rewrites Instagram's colors when you patch, with no switch to turn it off.",
-        "Save button on instants" to "A save for the Instants people send you, which the README leaves out " +
-            "as a ban precaution, so it stays a choice made in Expert mode with everything known.",
+        "Save button on stories and instants" to "A save for the Instants people send you, which the README leaves " +
+            "out as a ban precaution, so it stays a choice made in Expert mode with everything known.",
         "View DM photos and videos anonymously" to "A test feature until the sender's side is checked " +
             "with two accounts.",
     )

@@ -3074,12 +3074,13 @@
       "options": []
     },
     {
-      "name": "Save button on instants",
-      "description": "Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Starts off. Turn it on in HushGram settings > Messages.",
+      "name": "Save button on stories and instants",
+      "description": "Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Starts off. Turn it on in HushGram settings > Messages.",
       "category": "Messages",
       "use": false,
       "dependencies": [
         "BytecodePatch",
+        "Download any story",
         "HushGram settings",
         "Message box buttons"
       ],

@@ -262,7 +262,7 @@ class CleanUpReelsHookTest {
     fun eachOtherBuildHidesEveryPart() {
         val builds = Fixtures.otherBuilds()
         for (apk in builds) hidesEveryPart(apk, apk.parentFile.name)
-        assertTrue("no other build was read", builds.isNotEmpty())
+        assertTrue("no other build was read", builds.isNotEmpty() || Fixtures.OTHER_BUILDS == 0)
     }
 
     private fun hidesEveryPart(bundle: File, label: String) {

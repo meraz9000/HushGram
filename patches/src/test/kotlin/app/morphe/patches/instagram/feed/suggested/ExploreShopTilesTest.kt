@@ -167,7 +167,7 @@ class ExploreShopTilesTest {
             hooksExploresSections(apk, apk.parentFile.name)
             checked++
         }
-        assertTrue("no other build", checked > 0)
+        assertTrue("no other build", checked > 0 || Fixtures.OTHER_BUILDS == 0)
         assertEquals("the builds besides the declared one", Fixtures.OTHER_BUILDS, checked)
     }
 

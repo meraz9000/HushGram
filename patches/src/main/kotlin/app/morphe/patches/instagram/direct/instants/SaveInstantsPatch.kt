@@ -14,49 +14,68 @@ import app.morphe.patches.instagram.direct.messagebox.findMessageBox
 import app.morphe.patches.instagram.direct.messagebox.messageBoxPatch
 import app.morphe.patches.instagram.download.MEDIA
 import app.morphe.patches.instagram.download.USER
+import app.morphe.patches.instagram.download.story.downloadStoryPatch
 import app.morphe.patches.instagram.misc.extension.EXTENSION_PACKAGE
 import app.morphe.patches.instagram.misc.extension.enableStatus
 import app.morphe.patches.instagram.misc.extension.instagramExtensionPatch
+import app.morphe.patches.instagram.misc.extension.originalName
 import app.morphe.patches.instagram.misc.extension.requireStatusMethod
 import app.morphe.patches.instagram.misc.settings.settingsPatch
 import app.morphe.patches.shared.compat.AppCompatibilities
+import app.morphe.util.returnEarly
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
-private const val PATCH = "Save button on instants"
+private const val PATCH = "Save button on stories and instants"
 internal const val INSTANTS_SAVE = "$EXTENSION_PACKAGE/download/InstantsSave;"
 internal const val ON_VIEW = "$INSTANTS_SAVE->onView(Ljava/lang/Object;)V"
+internal const val ON_STORY = "$INSTANTS_SAVE->onStory(Ljava/lang/Object;)V"
 internal const val COMPOSER_HOOK =
     "$INSTANTS_SAVE->composerCreated(Landroid/view/View;Landroid/view/View;Landroid/view/View;)V"
 internal const val MEDIA_STUB = "$INSTANTS_SAVE->media(Ljava/lang/Object;)Ljava/lang/Object;"
+internal const val STORY_MEDIA_STUB = "$INSTANTS_SAVE->storyMedia(Ljava/lang/Object;)Ljava/lang/Object;"
+private const val VOICE_BAR_ID_STUB = "$INSTANTS_SAVE->voiceBarId()I"
 
 /** The kept class that reads an instant back from the Room cache and builds the item model. */
 internal const val ROOM_LOADER =
     "Lcom/instagram/quicksnap/data/persistence/QuickSnapRoomDbAccessor\$loadCachedResponse\$2;"
 
+/** The story viewer's menu helper, kept by its Redex marker, and the story it holds. */
+internal const val HELPER_NAME = "ReelOptionsOverflowHelper"
+internal const val REEL_ITEM = "Lcom/instagram/model/reels/ReelItem;"
+
+/** Instagram 452's id/voice_message_bar, the story viewer's reply bar (aapt2). */
+internal const val VOICE_BAR_ID = 0x7f0b476f
+
 @Suppress("unused")
 val saveInstantsPatch = bytecodePatch(
-    name = "Save button on instants",
-    description = "Puts a Save button in the reply bar under an instant you're watching. A tap saves that one " +
-        "photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Starts off. " +
-        "Turn it on in HushGram settings > Messages.",
+    name = "Save button on stories and instants",
+    description = "Puts a Save button in the reply bar under the story or instant you're watching. A tap saves " +
+        "that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. " +
+        "Starts off. Turn it on in HushGram settings > Messages.",
     default = false,
 ) {
     category("Messages")
-    dependsOn(settingsPatch, instagramExtensionPatch, messageBoxPatch)
+    dependsOn(settingsPatch, instagramExtensionPatch, messageBoxPatch, downloadStoryPatch)
     compatibleWith(*AppCompatibilities.instagram())
 
     execute {
         requireStatusMethod("saveInstantsButton")
+        hookStoryBind()
         val model = findInstantModel()
         hookInstantRender(findInstantRender(model))
         placeSaveButton(findMessageBox())
         fillMediaStub(model, findModelMediaField(model))
+        fillStoryMediaStub()
+        fillVoiceBarId()
         enableStatus("saveInstantsButton")
     }
 }
@@ -190,4 +209,77 @@ internal fun BytecodePatchContext.fillMediaStub(model: String, field: FieldRefer
             return-object p0
         """,
     )
+}
+
+/**
+ * Hands the story viewer's current item to the extension whenever it changes: every write of the
+ * story menu helper's story field, the item of the story or instant on screen, calls the
+ * extension on its way in. The helper is found by the name Redex kept for it, so the hook
+ * survives Instagram's renames.
+ */
+internal fun BytecodePatchContext.hookStoryBind() {
+    val helpers = mutableListOf<ClassDef>()
+    classDefForEach { classDef -> if (classDef.originalName() == HELPER_NAME) helpers += classDef }
+    val helper = helpers.singleOrNull() ?: refuse(
+        "expected one class named $HELPER_NAME, found " +
+            if (helpers.isEmpty()) "none" else helpers.joinToString { it.type },
+    )
+    val storyField = helper.fields.singleOrNull { field ->
+        field.type == REEL_ITEM && !AccessFlags.STATIC.isSet(field.accessFlags)
+    } ?: refuse("the $HELPER_NAME helper holds no story")
+
+    var hooks = 0
+    classDefForEach { classDef ->
+        classDef.methods.forEach { method ->
+            val code = method.implementation?.instructions ?: return@forEach
+            val writes = code.mapIndexedNotNull { index, instruction ->
+                if (instruction.opcode != Opcode.IPUT_OBJECT) return@mapIndexedNotNull null
+                val field = (instruction as? ReferenceInstruction)?.reference as? FieldReference
+                    ?: return@mapIndexedNotNull null
+                if (field.definingClass == helper.type && field.name == storyField.name) index else null
+            }
+            if (writes.isEmpty()) return@forEach
+            val mutable = mutableClassDefBy(classDef.type).methods.single {
+                it.name == method.name && it.parameterTypes == method.parameterTypes && it.returnType == method.returnType
+            }
+            writes.forEach { index ->
+                val value = (mutable.implementation!!.instructions[index] as TwoRegisterInstruction).registerA
+                val call = if (value <= 15) "invoke-static { v$value }, $ON_STORY"
+                else "invoke-static/range { v$value .. v$value }, $ON_STORY"
+                mutable.addInstructions(index + 1, call)
+            }
+            hooks += writes.size
+        }
+    }
+    if (hooks == 0) refuse("nothing writes the story menu helper's story")
+}
+
+/**
+ * Fills the extension's story stub: the Media of the story or instant the viewer holds, the one
+ * Media field the item class keeps, the same read the story menu's builders make.
+ */
+internal fun BytecodePatchContext.fillStoryMediaStub() {
+    val classDef = classDefByOrNull(REEL_ITEM) ?: refuse("this build has no $REEL_ITEM")
+    val field = classDef.fields.singleOrNull { it.type == MEDIA && !AccessFlags.STATIC.isSet(it.accessFlags) }
+        ?: refuse("${REEL_ITEM} keeps no single Media field")
+    val stub = mutableClassDefBy(INSTANTS_SAVE).methods.single {
+        it.name == "storyMedia" && it.returnType == "Ljava/lang/Object;" &&
+            it.parameterTypes.map(Any::toString) == listOf("Ljava/lang/Object;")
+    }
+    stub.addInstructions(
+        0,
+        """
+            check-cast p0, $REEL_ITEM
+            iget-object p0, p0, $REEL_ITEM->${field.name}:$MEDIA
+            return-object p0
+        """,
+    )
+}
+
+/** Fills the extension's reply-bar id stub with the id aapt2 names on this build. */
+internal fun BytecodePatchContext.fillVoiceBarId() {
+    val stub = mutableClassDefBy(INSTANTS_SAVE).methods.single {
+        it.name == "voiceBarId" && it.returnType == "I" && it.parameterTypes.isEmpty()
+    }
+    stub.returnEarly(VOICE_BAR_ID)
 }

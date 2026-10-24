@@ -1545,8 +1545,8 @@ public final class L10nTranslations {
                 "Setzt ein \u201eBlockieren\u201c-Symbol neben das Reel eines anderen Kontos. Ein Tippen \u00f6ffnet Instagrams eigenen Blockieren-Bildschirm f\u00fcr dieses Konto, dort best\u00e4tigst du es noch.");
         table.put("Puts a Not interested icon beside a reel, so one tap does what Not interested in its menu does.",
                 "Setzt ein \u201eKein Interesse\u201c-Symbol neben ein Reel, damit ein Tippen dasselbe macht wie \u201eKein Interesse\u201c in seinem Men\u00fc.");
-        table.put("Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
-                "F\u00fcgt einen Save-Button in die Antwortleiste unter dem Instant ein, das du gerade ansiehst. Ein Tipp speichert dieses eine Foto oder Video in deine Galerie, so wie Download ein Reel speichert. Ohne Tippen wird nichts gespeichert.");
+        table.put("Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
+                "F\u00fcgt einen Save-Button in die Antwortleiste unter der Story oder dem Instant ein, das du gerade ansiehst. Ein Tipp speichert dieses eine Foto oder Video in deine Galerie, so wie Download ein Reel speichert. Ohne Tippen wird nichts gespeichert.");
     }
 
     private static void fillDe12(Map<String, String> table) {
@@ -1681,8 +1681,8 @@ public final class L10nTranslations {
                 "Speichern");
         table.put("Save all",
                 "Alle speichern");
-        table.put("Save button on instants",
-                "Save-Button bei Instants");
+        table.put("Save button on stories and instants",
+                "Save-Button bei Stories und Instants");
         table.put("Save canceled",
                 "Speichern abgebrochen");
         table.put("Save comment photo",
@@ -3838,8 +3838,8 @@ public final class L10nTranslations {
                 "Pone un icono de Bloquear junto al reel de otra persona. Un toque abre la pantalla de bloqueo de Instagram para esa cuenta, as\u00ed que todav\u00eda lo confirmas ah\u00ed.");
         table.put("Puts a Not interested icon beside a reel, so one tap does what Not interested in its menu does.",
                 "Pone un icono de No me interesa junto a un reel, as\u00ed un toque hace lo mismo que No me interesa en su men\u00fa.");
-        table.put("Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
-                "Pone un bot\u00f3n para guardar en la barra de respuesta debajo del Instant que est\u00e1s viendo. Un toque guarda esa foto o v\u00eddeo en tu galer\u00eda, igual que Download guarda un reel. No se guarda nada a menos que toques.");
+        table.put("Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
+                "Pone un bot\u00f3n para guardar en la barra de respuesta debajo de la story o el Instant que est\u00e1s viendo. Un toque guarda esa foto o v\u00eddeo en tu galer\u00eda, igual que Download guarda un reel. No se guarda nada a menos que toques.");
     }
 
     private static void fillEs12(Map<String, String> table) {
@@ -3974,8 +3974,8 @@ public final class L10nTranslations {
                 "Guardar");
         table.put("Save all",
                 "Guardar todo");
-        table.put("Save button on instants",
-                "Bot\u00f3n para guardar en Instants");
+        table.put("Save button on stories and instants",
+                "Bot\u00f3n para guardar en stories e Instants");
         table.put("Save canceled",
                 "Se cancel\u00f3 el guardado");
         table.put("Save comment photo",
@@ -6131,8 +6131,8 @@ public final class L10nTranslations {
                 "Menaruh ikon Blokir di samping reel orang lain. Satu ketukan membuka layar blokir milik Instagram untuk akun itu, jadi kamu tetap mengonfirmasinya di sana.");
         table.put("Puts a Not interested icon beside a reel, so one tap does what Not interested in its menu does.",
                 "Menaruh ikon Tidak tertarik di samping reel, jadi satu ketukan melakukan hal yang sama dengan Tidak tertarik di menunya.");
-        table.put("Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
-                "Menambahkan tombol Simpan di bilah balasan di bawah Instant yang kamu tonton. Sekali ketuk menyimpan foto atau video itu ke galeri kamu, seperti Download menyimpan reel. Tidak ada yang disimpan kecuali kamu mengetuk.");
+        table.put("Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
+                "Menambahkan tombol Simpan di bilah balasan di bawah story atau Instant yang kamu tonton. Sekali ketuk menyimpan foto atau video itu ke galeri kamu, seperti Download menyimpan reel. Tidak ada yang disimpan kecuali kamu mengetuk.");
     }
 
     private static void fillIn12(Map<String, String> table) {
@@ -6267,8 +6267,8 @@ public final class L10nTranslations {
                 "Simpan");
         table.put("Save all",
                 "Simpan semua");
-        table.put("Save button on instants",
-                "Tombol simpan di Instants");
+        table.put("Save button on stories and instants",
+                "Tombol simpan di story dan Instants");
         table.put("Save canceled",
                 "Penyimpanan dibatalkan");
         table.put("Save comment photo",
@@ -8424,8 +8424,8 @@ public final class L10nTranslations {
                 "Mette un'icona Blocca accanto al reel di un altro account. Un tocco apre la schermata di blocco di Instagram per quell'account, quindi confermi comunque l\u00ec.");
         table.put("Puts a Not interested icon beside a reel, so one tap does what Not interested in its menu does.",
                 "Mette un'icona Non mi interessa accanto a un reel, cos\u00ec un tocco fa quello che fa Non mi interessa nel suo menu.");
-        table.put("Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
-                "Mette un pulsante Salva nella barra di risposta sotto l'Instant che stai guardando. Un tocco salva quel solo foto o video nella tua galleria, come Download salva un reel. Non viene salvato nulla a meno che tu non tocchi.");
+        table.put("Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
+                "Mette un pulsante Salva nella barra di risposta sotto la storia o l'Instant che stai guardando. Un tocco salva quel solo foto o video nella tua galleria, come Download salva un reel. Non viene salvato nulla a meno che tu non tocchi.");
     }
 
     private static void fillIt12(Map<String, String> table) {
@@ -8560,8 +8560,8 @@ public final class L10nTranslations {
                 "Salva");
         table.put("Save all",
                 "Salva tutto");
-        table.put("Save button on instants",
-                "Pulsante Salva negli Instant");
+        table.put("Save button on stories and instants",
+                "Pulsante Salva su storie e Instant");
         table.put("Save canceled",
                 "Salvataggio annullato");
         table.put("Save comment photo",
@@ -10717,8 +10717,8 @@ public final class L10nTranslations {
                 "\ub2e4\ub978 \uc0ac\ub78c\uc758 \ub9b4\uc2a4 \uc606\uc5d0 \ucc28\ub2e8 \uc544\uc774\ucf58\uc744 \ub461\ub2c8\ub2e4. \ud0ed\ud558\uba74 \uadf8 \uacc4\uc815\uc5d0 \ub300\ud55c Instagram \uc790\uccb4 \ucc28\ub2e8 \ud654\uba74\uc774 \uc5f4\ub9ac\ubbc0\ub85c \uadf8\uacf3\uc5d0\uc11c \ud55c \ubc88 \ub354 \ud655\uc778\ud569\ub2c8\ub2e4.");
         table.put("Puts a Not interested icon beside a reel, so one tap does what Not interested in its menu does.",
                 "\ub9b4\uc2a4 \uc606\uc5d0 \uad00\uc2ec \uc5c6\uc74c \uc544\uc774\ucf58\uc744 \ub450\uc5b4, \ud55c \ubc88 \ud0ed\ud558\uba74 \uba54\ub274\uc758 \uad00\uc2ec \uc5c6\uc74c\uacfc \uac19\uc740 \uc77c\uc744 \ud569\ub2c8\ub2e4.");
-        table.put("Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
-                "\uc2dc\uccad \uc911\uc778 \uc778\uc2a4\ud134\ud2b8 \uc544\ub798 \ub2f5\uc7a5 \ubc14\uc5d0 \uc800\uc7a5 \ubc84\ud2bc\uc744 \ub123\uc2b5\ub2c8\ub2e4. \ud0ed\ud558\uba74 \uadf8 \ud558\ub098\uc758 \uc0ac\uc9c4\uc774\ub098 \ub3d9\uc601\uc0c1\uc774 \ub9b4\uc2a4\ub97c \uc800\uc7a5\ud558\ub294 \uac83\uacfc \uac19\uc740 \ubc29\uc2dd\uc73c\ub85c \uac24\ub7ec\ub9ac\uc5d0 \uc800\uc7a5\ub429\ub2c8\ub2e4. \ud0ed\ud558\uc9c0 \uc54a\uc73c\uba74 \uc544\ubb34\uac83\ub3c4 \uc800\uc7a5\ub418\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.");
+        table.put("Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
+                "\uc2dc\uccad \uc911\uc778 \uc2a4\ud1a0\ub9ac\ub098 \uc778\uc2a4\ud134\ud2b8 \uc544\ub798 \ub2f5\uc7a5 \ubc14\uc5d0 \uc800\uc7a5 \ubc84\ud2bc\uc744 \ub123\uc2b5\ub2c8\ub2e4. \ud0ed\ud558\uba74 \uadf8 \ud558\ub098\uc758 \uc0ac\uc9c4\uc774\ub098 \ub3d9\uc601\uc0c1\uc774 \ub9b4\uc2a4\ub97c \uc800\uc7a5\ud558\ub294 \uac83\uacfc \uac19\uc740 \ubc29\uc2dd\uc73c\ub85c \uac24\ub7ec\ub9ac\uc5d0 \uc800\uc7a5\ub429\ub2c8\ub2e4. \ud0ed\ud558\uc9c0 \uc54a\uc73c\uba74 \uc544\ubb34\uac83\ub3c4 \uc800\uc7a5\ub418\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.");
     }
 
     private static void fillKo12(Map<String, String> table) {
@@ -10853,8 +10853,8 @@ public final class L10nTranslations {
                 "\uc800\uc7a5");
         table.put("Save all",
                 "\ubaa8\ub450 \uc800\uc7a5");
-        table.put("Save button on instants",
-                "\uc778\uc2a4\ud134\ud2b8 \uc800\uc7a5 \ubc84\ud2bc");
+        table.put("Save button on stories and instants",
+                "\uc2a4\ud1a0\ub9ac \ubc0f \uc778\uc2a4\ud134\ud2b8 \uc800\uc7a5 \ubc84\ud2bc");
         table.put("Save canceled",
                 "\uc800\uc7a5\uc774 \ucde8\uc18c\ub428");
         table.put("Save comment photo",
@@ -13010,8 +13010,8 @@ public final class L10nTranslations {
                 "Coloca um \u00edcone de Bloquear ao lado do reel de outra pessoa. Um toque abre a tela de bloqueio do pr\u00f3prio Instagram para essa conta, ent\u00e3o voc\u00ea ainda confirma l\u00e1.");
         table.put("Puts a Not interested icon beside a reel, so one tap does what Not interested in its menu does.",
                 "Coloca um \u00edcone de N\u00e3o tenho interesse ao lado de um reel, para um toque fazer o mesmo que N\u00e3o tenho interesse no menu dele.");
-        table.put("Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
-                "Coloca um bot\u00e3o de salvar na barra de resposta abaixo do Instant que voc\u00ea est\u00e1 assistindo. Um toque salva aquela foto ou v\u00eddeo na sua galeria, do mesmo jeito que o Download salva um reel. Nada \u00e9 salvo a menos que voc\u00ea toque.");
+        table.put("Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
+                "Coloca um bot\u00e3o de salvar na barra de resposta abaixo da story ou do Instant que voc\u00ea est\u00e1 assistindo. Um toque salva aquela foto ou v\u00eddeo na sua galeria, do mesmo jeito que o Download salva um reel. Nada \u00e9 salvo a menos que voc\u00ea toque.");
     }
 
     private static void fillPt_rBR12(Map<String, String> table) {
@@ -13146,8 +13146,8 @@ public final class L10nTranslations {
                 "Salvar");
         table.put("Save all",
                 "Salvar tudo");
-        table.put("Save button on instants",
-                "Bot\u00e3o de salvar nos Instants");
+        table.put("Save button on stories and instants",
+                "Bot\u00e3o de salvar em stories e Instants");
         table.put("Save canceled",
                 "Salvamento cancelado");
         table.put("Save comment photo",
@@ -15303,8 +15303,8 @@ public final class L10nTranslations {
                 "Ba\u015fka birinin reel'inin yan\u0131na bir Engelle simgesi koyar. Dokunu\u015f o hesap i\u00e7in Instagram'\u0131n kendi engelleme ekran\u0131n\u0131 a\u00e7ar, yani yine orada onaylars\u0131n.");
         table.put("Puts a Not interested icon beside a reel, so one tap does what Not interested in its menu does.",
                 "Bir reel'in yan\u0131na \u0130lgilenmiyorum simgesi koyar, b\u00f6ylece tek dokunu\u015f men\u00fcs\u00fcndeki \u0130lgilenmiyorum ile ayn\u0131 i\u015fi yapar.");
-        table.put("Puts a Save button in the reply bar under an instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
-                "\u0130zledi\u011fin bir Instant'\u0131n alt\u0131ndaki yan\u0131t \u00e7ubu\u011funa bir Kaydet d\u00fc\u011fmesi koyar. Bir dokunu\u015f o tek foto\u011fraf\u0131 veya videoyu galerine kaydeder, t\u0131pk\u0131 Download'\u00fcn bir reel kaydetmesi gibi. Dokunmad\u0131k\u00e7a hi\u00e7bir \u015fey kaydedilmez.");
+        table.put("Puts a Save button in the reply bar under the story or instant you're watching. A tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap.",
+                "\u0130zledi\u011fin bir hikayenin veya Instant'\u0131n alt\u0131ndaki yan\u0131t \u00e7ubu\u011funa bir Kaydet d\u00fc\u011fmesi koyar. Bir dokunu\u015f o tek foto\u011fraf\u0131 veya videoyu galerine kaydeder, t\u0131pk\u0131 Download'\u00fcn bir reel kaydetmesi gibi. Dokunmad\u0131k\u00e7a hi\u00e7bir \u015fey kaydedilmez.");
     }
 
     private static void fillTr12(Map<String, String> table) {
@@ -15439,8 +15439,8 @@ public final class L10nTranslations {
                 "Kaydet");
         table.put("Save all",
                 "T\u00fcm\u00fcn\u00fc kaydet");
-        table.put("Save button on instants",
-                "Instants i\u00e7in kaydet d\u00fc\u011fmesi");
+        table.put("Save button on stories and instants",
+                "Hikayeler ve Instants i\u00e7in kaydet d\u00fc\u011fmesi");
         table.put("Save canceled",
                 "Kaydetme iptal edildi");
         table.put("Save comment photo",

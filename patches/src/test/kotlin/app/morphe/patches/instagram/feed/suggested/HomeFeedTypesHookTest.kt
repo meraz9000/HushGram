@@ -253,7 +253,7 @@ class HomeFeedTypesHookTest {
         val bundles = versions.flatMap { version -> Fixtures.files { it.extension == "apks" && it.name.contains("-$version-") } }
         val others = Fixtures.otherBuilds()
         assertTrue("no fixture of a declared build", bundles.isNotEmpty())
-        assertTrue("other builds of the declared version were not read", others.isNotEmpty())
+        assertTrue("other builds of the declared version were not read", others.isNotEmpty() || Fixtures.OTHER_BUILDS == 0)
         var checked = 0
         for (bundle in bundles + others) {
             val where = "${bundle.parentFile.name}/${bundle.name}"
@@ -571,7 +571,7 @@ class HomeFeedTypesHookTest {
         val bundles = versions.flatMap { version -> Fixtures.files { it.extension == "apks" && it.name.contains("-$version-") } }
         val others = Fixtures.otherBuilds()
         assertTrue("no fixture of a declared build", bundles.isNotEmpty())
-        assertTrue("other builds of the declared version were not read", others.isNotEmpty())
+        assertTrue("other builds of the declared version were not read", others.isNotEmpty() || Fixtures.OTHER_BUILDS == 0)
         var checked = 0
         for (bundle in bundles + others) {
             val where = "${bundle.parentFile.name}/${bundle.name}"

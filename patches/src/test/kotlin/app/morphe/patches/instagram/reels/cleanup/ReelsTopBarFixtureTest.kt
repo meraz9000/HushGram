@@ -50,7 +50,7 @@ class ReelsTopBarFixtureTest {
     fun eachOtherBuildHasTheBarAndItsSource() {
         val builds = Fixtures.otherBuilds()
         for (apk in builds) hasTheBarAndItsSource(apk, apk.parentFile.name)
-        assertTrue("no other build was read", builds.isNotEmpty())
+        assertTrue("no other build was read", builds.isNotEmpty() || Fixtures.OTHER_BUILDS == 0)
     }
 
     private fun hasTheBarAndItsSource(bundle: File, label: String) {

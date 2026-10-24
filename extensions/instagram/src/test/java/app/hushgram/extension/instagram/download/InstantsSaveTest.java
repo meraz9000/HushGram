@@ -60,7 +60,7 @@ public class InstantsSaveTest {
         LinearLayout bar = row();
         InstantsSave.composerCreated(bar.getChildAt(0), null, bar.getChildAt(1));
         InstantsSave.onViewBound(MEDIA);
-        assertFalse(report(), report().contains("Save button on instants"));
+        assertFalse(report(), report().contains("Save button on stories and instants"));
         assertEquals(2, bar.getChildCount());
     }
 

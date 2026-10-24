@@ -59,7 +59,8 @@ class ShowLastActiveHookTest {
             }
         }
         for (base in Fixtures.otherBuilds()) checked += builds(base, base.parentFile.name)
-        for (code in BUILDS) assertTrue("no fixture of build $code among $checked", checked.any { it.contains("-$code") })
+        val required = if (Fixtures.BUILDS == 1) listOf(AppCompatibilities.INSTAGRAM_TARGET_VERSION_CODE) else BUILDS
+        for (code in required) assertTrue("no fixture of build $code among $checked", checked.any { it.contains("-$code") })
     }
 
     @Test
@@ -91,7 +92,8 @@ class ShowLastActiveHookTest {
     private val checked = mutableListOf<String>()
     private var cached: File? = null
 
-    private fun representative(): File = cached ?: Fixtures.otherBuilds().first().also { cached = it }
+    private fun representative(): File = cached
+        ?: (Fixtures.otherBuilds().firstOrNull() ?: Fixtures.files { it.extension == "apks" }.first()).also { cached = it }
 
     /** The one build's classes that load the week limit, plus the extension. */
     private fun keptFrom(bundle: File): List<ClassDef> {

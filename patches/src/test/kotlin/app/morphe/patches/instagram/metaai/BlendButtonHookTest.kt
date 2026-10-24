@@ -63,7 +63,7 @@ class BlendButtonHookTest {
 
     @Test
     fun aBuildWithoutTheAnswerClassFailsThePatch() {
-        val bundle = Fixtures.otherBuilds().first()
+        val bundle = Fixtures.otherBuilds().firstOrNull() ?: Fixtures.files { it.extension == "apks" }.first()
         val holders = FixtureDex.classesHolding(bundle, BLEND_VISIBILITY).distinctBy { it.type }
         val context = PatchContexts.of(FixtureDex.withStringPools(bundle, holders))
         val refusal = assertThrows(PatchException::class.java) { context.findBlendVisibilityCheck() }

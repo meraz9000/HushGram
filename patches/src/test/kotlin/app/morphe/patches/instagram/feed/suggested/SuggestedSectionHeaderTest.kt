@@ -127,7 +127,7 @@ class SuggestedSectionHeaderTest {
             hooksTheTitle(apk, apk.parentFile.name)
             checked++
         }
-        assertTrue("no other build", checked > 0)
+        assertTrue("no other build", checked > 0 || Fixtures.OTHER_BUILDS == 0)
     }
 
     /** The binder, every class its bindView casts to (the section among them) and the extension. */

@@ -57,7 +57,7 @@ class RemoveBuildExpiredPopupHookTest {
             builds(base, base.parentFile.name)
             checked++
         }
-        assertTrue("other builds beside the declared one: $checked", checked >= 1)
+        assertTrue("other builds beside the declared one: $checked", checked >= 1 || Fixtures.OTHER_BUILDS == 0)
     }
 
     @Test

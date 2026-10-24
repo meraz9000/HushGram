@@ -91,6 +91,15 @@ public final class InstantsSave {
         onViewBound(item == null ? null : media(item));
     }
 
+    /**
+     * Called with the story viewer's item whenever the story or instant on screen changes — both
+     * are the same viewer, and its menu helper keeps the current item in a field the patch hooks.
+     * The Media reaches this class through a stub the patch fills. Never throws.
+     */
+    public static void onStory(Object item) {
+        onViewBound(item == null ? null : storyMedia(item));
+    }
+
     /** What {@link #onView} does once the item's Media is in, tests included. Never throws. */
     static void onViewBound(@Nullable Object media) {
         try {
@@ -139,12 +148,15 @@ public final class InstantsSave {
      * button's own metrics.
      */
     private static void place() {
-        ViewGroup bar = row;
-        if (bar == null || SystemClock.elapsedRealtime() - rowAt > ROW_FRESH_MS) {
+        View bar = bar();
+        if (bar == null) {
             HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, NO_ROW);
             return;
         }
         if (bar.findViewWithTag(TAG) != null) {
+            return;
+        }
+        if (!(bar instanceof ViewGroup)) {
             return;
         }
         ImageView save = new ImageView(bar.getContext());
@@ -153,17 +165,41 @@ public final class InstantsSave {
         save.setPadding(dp(bar, 4), dp(bar, 4), dp(bar, 4), dp(bar, 4));
         save.setOnClickListener(v -> tap(v));
         ViewGroup.LayoutParams params = null;
-        for (int i = 0; i < bar.getChildCount(); i++) {
-            View child = bar.getChildAt(i);
-            if (child != null && child.getVisibility() == View.VISIBLE && child.getLayoutParams() != null) {
-                params = new ViewGroup.LayoutParams(child.getLayoutParams());
+        if (bar instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) bar;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View child = group.getChildAt(i);
+                if (child != null && child.getVisibility() == View.VISIBLE && child.getLayoutParams() != null) {
+                    params = new ViewGroup.LayoutParams(child.getLayoutParams());
+                }
             }
         }
         if (params == null) {
             params = new ViewGroup.LayoutParams(dp(bar, 40), dp(bar, 40));
         }
         HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, PLACED);
-        bar.addView(save, bar.getChildCount(), params);
+        ((ViewGroup) bar).addView(save, ((ViewGroup) bar).getChildCount(), params);
+    }
+
+    /**
+     * The view the Save button goes in: the reply bar a composer offered, or, while a story or
+     * instant is on screen, the story viewer's own reply bar, found by the id the patch supplies.
+     */
+    @Nullable
+    private static View bar() {
+        ViewGroup captured = row;
+        if (captured != null && SystemClock.elapsedRealtime() - rowAt <= ROW_FRESH_MS) {
+            return captured;
+        }
+        Activity activity = Utils.getActivity();
+        if (activity == null) {
+            return null;
+        }
+        try {
+            return activity.findViewById(voiceBarId());
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /** Clears the instant on screen, as the viewer's close will. Tests use it too. */
@@ -258,5 +294,15 @@ public final class InstantsSave {
     /** Filled in by the patch: the Media of [item], one of Instagram's instant items, or null. */
     public static Object media(Object item) {
         return null;
+    }
+
+    /** Filled in by the patch: the Media of [item], the story or instant the viewer shows, or null. */
+    public static Object storyMedia(Object item) {
+        return null;
+    }
+
+    /** Filled in by the patch: the resource id of the story viewer's reply bar. */
+    public static int voiceBarId() {
+        return 0;
     }
 }

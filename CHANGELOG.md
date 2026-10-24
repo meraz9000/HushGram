@@ -6,7 +6,7 @@ Every HushGram release, newest first.
 
 ### Features
 
-* **Instagram - Save button on instants:** new patch, kept out of simple mode. A switch under Messages puts a Save button in the reply bar under an instant you're watching, and a tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Asked for in testing the Instants feed.
+* **Instagram - Save button on stories and instants:** new patch, kept out of simple mode. A switch under Messages puts a Save button in the reply bar under the story or instant you're watching, and a tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Asked for in testing the Instants feed.
 
 * **Instagram - Download any video:** Details has a Copy caption without hashtags row for captions that have them. It drops a closing block of tags and the dots above it, and a tag inside a sentence keeps its word. Reported in #282.
 * **Instagram - Swipe left to open the profile:** new patch, in simple mode with its switch off. Turn it on under Reels and a left swipe on a reel in the Reels tab slides in the creator's profile, like Instagram used to. A right swipe on a reel still goes to Home, and on the profile it opened, a right swipe or Back takes you to the reel. Turning it on or off takes a restart. Asked for in #245 and #283.
