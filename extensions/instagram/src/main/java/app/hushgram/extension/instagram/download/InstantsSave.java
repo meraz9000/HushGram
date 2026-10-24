@@ -20,7 +20,9 @@ import app.hushgram.extension.instagram.download.ReelDownload;
 import app.hushgram.extension.instagram.settings.FamilyNames;
 import app.hushgram.extension.instagram.settings.Settings;
 import app.hushgram.extension.shared.L10n;
+import app.hushgram.extension.shared.Logger;
 import app.hushgram.extension.shared.Utils;
+import app.hushgram.extension.shared.diagnostics.DiagnosticCategory;
 import app.hushgram.extension.shared.diagnostics.HookStatus;
 
 /**
@@ -52,9 +54,13 @@ public final class InstantsSave {
     static final String PLACE = "button placement";
     /** The step a failed save is reported under. */
     static final String SAVE = "save";
+    /** The name the diagnostic log and report count this feature under. */
+    static final String SOURCE = "InstantsSave";
 
     /** Counted for each instant that became the one on screen. */
     static final String BOUND = "bound an instant on screen";
+    /** Whether the switch-off notice went to the diagnostic log this process. */
+    private static volatile boolean loggedOff;
     /** Counted for each button put in a reply bar. */
     static final String PLACED = "placed the Save button";
     /** Counted when a render found no reply bar to hold the button yet. */
@@ -66,6 +72,8 @@ public final class InstantsSave {
     private static final Object TAG = "hushgram_save_instants";
     /** How long a composer's row stays worth placing into after the composer was made. */
     private static final long ROW_FRESH_MS = 15_000;
+    /** How long the floating glyph stays after the last render that kept it alive. */
+    private static final long OVERLAY_LIFE_MS = 6_000;
 
     /** The instant's Media on screen now, or null. Guarded by {@link #LOCK}. */
     @Nullable
@@ -79,6 +87,12 @@ public final class InstantsSave {
     private static volatile long rowAt;
 
     private static final Object LOCK = new Object();
+    /** The floating glyph over a viewer whose reply bar can't hold the button, or null. */
+    @Nullable
+    private static volatile android.widget.PopupWindow overlay;
+    /** The handler that takes the floating glyph away once renders stop. */
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+    private static final Runnable HIDE = InstantsSave::hideOverlay;
 
     private InstantsSave() {
     }
@@ -97,13 +111,22 @@ public final class InstantsSave {
      * The Media reaches this class through a stub the patch fills. Never throws.
      */
     public static void onStory(Object item) {
-        onViewBound(item == null ? null : storyMedia(item));
+        Object media = item == null ? null : storyMedia(item);
+        Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
+            "story bound: item " + (item == null ? "null" : "ok") + ", media " + (media == null ? "null" : "ok"));
+        onViewBound(media);
     }
 
     /** What {@link #onView} does once the item's Media is in, tests included. Never throws. */
     static void onViewBound(@Nullable Object media) {
         try {
             if (!on()) {
+                if (!loggedOff) {
+                    loggedOff = true;
+                    Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
+                        "off: settingsReady " + Utils.settingsReady() + ", switch " +
+                            (Utils.settingsReady() ? Settings.SAVE_INSTANTS_BUTTON.get() : null));
+                }
                 return;
             }
             HookStatus.invoked(FamilyNames.SAVE_INSTANTS_BUTTON);
@@ -143,60 +166,119 @@ public final class InstantsSave {
     }
 
     /**
-     * Puts the Save button at the end of the captured row, once, while the row is fresh. The icon
-     * is drawn here, not taken from Instagram, and the row lays it out with the voice message
-     * button's own metrics.
+     * Puts the Save button where the surface keeps its controls: in the reply bar's row when the
+     * surface has one, else as a floating glyph over the viewer that every render keeps alive and
+     * that goes away shortly after the renders stop. The icon is drawn here either way.
      */
     private static void place() {
-        View bar = bar();
-        if (bar == null) {
+        ViewGroup captured = row;
+        if (captured != null && SystemClock.elapsedRealtime() - rowAt <= ROW_FRESH_MS) {
+            if (captured.findViewWithTag(TAG) == null) {
+                placeIn(captured);
+            }
+            return;
+        }
+        Activity activity = Utils.getActivity();
+        if (activity == null || activity.isFinishing()) {
             HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, NO_ROW);
             return;
         }
-        if (bar.findViewWithTag(TAG) != null) {
-            return;
-        }
-        if (!(bar instanceof ViewGroup)) {
-            return;
-        }
-        ImageView save = new ImageView(bar.getContext());
-        save.setTag(TAG);
-        save.setImageDrawable(new Glyph(bar.getContext()));
-        save.setPadding(dp(bar, 4), dp(bar, 4), dp(bar, 4), dp(bar, 4));
-        save.setOnClickListener(v -> tap(v));
-        ViewGroup.LayoutParams params = null;
+        View bar = bar(activity);
         if (bar instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) bar;
-            for (int i = 0; i < group.getChildCount(); i++) {
-                View child = group.getChildAt(i);
-                if (child != null && child.getVisibility() == View.VISIBLE && child.getLayoutParams() != null) {
-                    params = new ViewGroup.LayoutParams(child.getLayoutParams());
-                }
+            if (group.findViewWithTag(TAG) != null) {
+                return;
+            }
+            placeIn(group);
+            return;
+        }
+        showOverlay(activity);
+    }
+
+    /** Puts the icon at the end of [group], with the metrics of its last visible child. */
+    private static void placeIn(ViewGroup group) {
+        ImageView save = icon(group.getContext());
+        ViewGroup.LayoutParams params = null;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child != null && child.getVisibility() == View.VISIBLE && child.getLayoutParams() != null) {
+                params = new ViewGroup.LayoutParams(child.getLayoutParams());
             }
         }
         if (params == null) {
-            params = new ViewGroup.LayoutParams(dp(bar, 40), dp(bar, 40));
+            params = new ViewGroup.LayoutParams(dp(group, 40), dp(group, 40));
         }
         HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, PLACED);
-        ((ViewGroup) bar).addView(save, ((ViewGroup) bar).getChildCount(), params);
+        group.addView(save, group.getChildCount(), params);
+    }
+
+    /** The floating glyph over the viewer, kept alive by the renders and hidden once they stop. */
+    private static void showOverlay(Activity activity) {
+        try {
+            View decor = activity.getWindow().getDecorView();
+            if (!decor.isAttachedToWindow() || decor.getWidth() <= 0 || decor.getHeight() <= 0) {
+                return;
+            }
+            android.widget.PopupWindow showing = overlay;
+            if (showing != null && showing.isShowing() && showing.getContentView() != null &&
+                showing.getContentView().isAttachedToWindow()) {
+                MAIN.removeCallbacks(HIDE);
+                MAIN.postDelayed(HIDE, OVERLAY_LIFE_MS);
+                return;
+            }
+            ImageView save = icon(activity);
+            int size = dp(activity, 44);
+            android.widget.PopupWindow popup = new android.widget.PopupWindow(save, size, size);
+            popup.setBackgroundDrawable(null);
+            popup.setFocusable(false);
+            popup.setOutsideTouchable(false);
+            // On the top bar, just left of the grid and camera buttons.
+            int x = Math.round(decor.getWidth() * 0.58f);
+            int y = Math.round(decor.getHeight() * 0.042f);
+            popup.showAtLocation(decor, android.view.Gravity.TOP | android.view.Gravity.START, x, y);
+            overlay = popup;
+            MAIN.removeCallbacks(HIDE);
+            MAIN.postDelayed(HIDE, OVERLAY_LIFE_MS);
+            HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, PLACED);
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
+                "overlay shown at " + x + "," + y + " in " + decor.getWidth() + "x" + decor.getHeight());
+        } catch (Throwable t) {
+            HookStatus.threw(FamilyNames.SAVE_INSTANTS_BUTTON, PLACE, t);
+        }
+    }
+
+    /** Takes the floating glyph away. */
+    private static void hideOverlay() {
+        try {
+            android.widget.PopupWindow showing = overlay;
+            overlay = null;
+            if (showing != null && showing.isShowing()) {
+                showing.dismiss();
+                Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () -> "overlay hidden");
+            }
+        } catch (Throwable ignored) {
+            // A window already gone needs nothing.
+        }
+    }
+
+    /** The drawn Save glyph, with the tap that saves the instant on screen. */
+    private static ImageView icon(android.content.Context context) {
+        ImageView save = new ImageView(context);
+        save.setTag(TAG);
+        save.setImageDrawable(new Glyph(context));
+        save.setPadding(dp(context, 4), dp(context, 4), dp(context, 4), dp(context, 4));
+        save.setOnClickListener(v -> tap(v));
+        return save;
     }
 
     /**
-     * The view the Save button goes in: the reply bar a composer offered, or, while a story or
-     * instant is on screen, the story viewer's own reply bar, found by the id the patch supplies.
+     * The view the Save button goes in: the reply bar a composer offered, or a reply bar the
+     * activity carries by the id the patch supplies.
      */
     @Nullable
-    private static View bar() {
-        ViewGroup captured = row;
-        if (captured != null && SystemClock.elapsedRealtime() - rowAt <= ROW_FRESH_MS) {
-            return captured;
-        }
-        Activity activity = Utils.getActivity();
-        if (activity == null) {
-            return null;
-        }
+    private static View bar(Activity activity) {
         try {
-            return activity.findViewById(voiceBarId());
+            return activity.findViewById(replyBarId());
         } catch (Throwable t) {
             return null;
         }
@@ -250,7 +332,12 @@ public final class InstantsSave {
 
     /** [value] device-independent pixels in the view's scale. */
     private static int dp(View view, float value) {
-        return Math.round(value * view.getResources().getDisplayMetrics().density);
+        return dp(view.getContext(), value);
+    }
+
+    /** [value] device-independent pixels in the context's scale. */
+    private static int dp(android.content.Context context, float value) {
+        return Math.round(value * context.getResources().getDisplayMetrics().density);
     }
 
     /** Whether the switch is on. The pause and the settings' readiness are read with it. */
@@ -284,11 +371,6 @@ public final class InstantsSave {
         private static int dp(android.content.Context context, float value) {
             return Math.round(value * context.getResources().getDisplayMetrics().density);
         }
-
-        @Override
-        public void draw(Canvas canvas) {
-            // The bitmap is the drawing; nothing to add.
-        }
     }
 
     /** Filled in by the patch: the Media of [item], one of Instagram's instant items, or null. */
@@ -302,7 +384,7 @@ public final class InstantsSave {
     }
 
     /** Filled in by the patch: the resource id of the story viewer's reply bar. */
-    public static int voiceBarId() {
+    public static int replyBarId() {
         return 0;
     }
 }

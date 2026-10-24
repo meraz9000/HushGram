@@ -391,7 +391,7 @@ public class ReelDownloadTest {
     /** Download audio saves the manifest's sound track, and a manifest with no sound saves nothing and says so. */
     @Test
     @Config(shadows = Item.class)
-    public void downloadAudioSavesTheSoundTrack() {
+    public void downloadAudioSavesTheSoundTrack() throws InterruptedException {
         Item.manifest = WITH_SOUND;
         refuseEveryFetch();
         Activity activity = Robolectric.buildActivity(Activity.class).setup().get();
@@ -401,6 +401,10 @@ public class ReelDownloadTest {
         assertTrue(String.valueOf(HookStatus.report()), String.valueOf(HookStatus.report()).contains("saved audio 1"));
         assertEquals("sound.mp4", Uri.parse(DashManifest.bestAudio(DashManifest.parse(WITH_SOUND)).url).getLastPathSegment());
 
+        // The first save started a download the refused fetches fail on the worker: let it end
+        // and let its own toast out before the second save's toast is the one read.
+        long settled = System.currentTimeMillis() + 10_000;
+        while (MediaSave.savesInFlight() > 0 && System.currentTimeMillis() < settled) Thread.sleep(20);
         Shadows.shadowOf(Looper.getMainLooper()).idle();
         ShadowToast.reset();
         Item.manifest = WITH_SOUND.replaceAll("<AdaptationSet mimeType=\"audio/mp4\">.*?</AdaptationSet>", "");

@@ -72,6 +72,9 @@ import app.hushgram.extension.shared.ui.Dim;
 
 public class Utils {
     private static WeakReference<Activity> activityRef = new WeakReference<>(null);
+    /** Whether the app's activity lifecycle callbacks are in, which follow the resumed activity. */
+    private static final java.util.concurrent.atomic.AtomicBoolean activityWatch =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
 
     @SuppressLint("StaticFieldLeak")
     static volatile Context context;
@@ -460,6 +463,42 @@ public class Utils {
         // destroyed rather than finishing.
         if (appContext instanceof Activity activity && getActivity() != activity) {
             setActivity(activity);
+        }
+
+        // The context arrives as the app's Application at start, before any activity resumes, so
+        // the resumed activity is followed from the lifecycle the app already reports. Features
+        // that have only a hook argument to work from, like the Save button's placement in a
+        // reply bar, read it through getActivity(); the callbacks are the standard public way.
+        if (context instanceof android.app.Application applicationContext && activityWatch.compareAndSet(false, true)) {
+            try {
+                applicationContext.registerActivityLifecycleCallbacks(
+                        new android.app.Application.ActivityLifecycleCallbacks() {
+                            @Override
+                            public void onActivityResumed(Activity activity) {
+                                setActivity(activity);
+                            }
+
+                            @Override
+                            public void onActivityDestroyed(Activity activity) {
+                                if (getActivity() == activity) {
+                                    setActivity(null);
+                                }
+                            }
+
+                            @Override public void onActivityCreated(Activity activity, android.os.Bundle state) { }
+
+                            @Override public void onActivityStarted(Activity activity) { }
+
+                            @Override public void onActivityPaused(Activity activity) { }
+
+                            @Override public void onActivityStopped(Activity activity) { }
+
+                            @Override public void onActivitySaveInstanceState(Activity activity, android.os.Bundle state) { }
+                        });
+            } catch (Throwable t) {
+                activityWatch.set(false);
+                Logger.printException(() -> "Could not follow the activity", t);
+            }
         }
 
         AppLanguage language = BaseSettings.MORPHE_LANGUAGE.get();

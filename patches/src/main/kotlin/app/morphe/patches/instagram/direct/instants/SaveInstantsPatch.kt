@@ -42,7 +42,7 @@ internal const val COMPOSER_HOOK =
     "$INSTANTS_SAVE->composerCreated(Landroid/view/View;Landroid/view/View;Landroid/view/View;)V"
 internal const val MEDIA_STUB = "$INSTANTS_SAVE->media(Ljava/lang/Object;)Ljava/lang/Object;"
 internal const val STORY_MEDIA_STUB = "$INSTANTS_SAVE->storyMedia(Ljava/lang/Object;)Ljava/lang/Object;"
-private const val VOICE_BAR_ID_STUB = "$INSTANTS_SAVE->voiceBarId()I"
+private const val REPLY_BAR_ID_STUB = "$INSTANTS_SAVE->replyBarId()I"
 
 /** The kept class that reads an instant back from the Room cache and builds the item model. */
 internal const val ROOM_LOADER =
@@ -52,8 +52,8 @@ internal const val ROOM_LOADER =
 internal const val HELPER_NAME = "ReelOptionsOverflowHelper"
 internal const val REEL_ITEM = "Lcom/instagram/model/reels/ReelItem;"
 
-/** Instagram 452's id/voice_message_bar, the story viewer's reply bar (aapt2). */
-internal const val VOICE_BAR_ID = 0x7f0b476f
+/** Instagram 452's id/instant_reply_bar, the story and instants viewer's reply bar (aapt2). */
+internal const val REPLY_BAR_ID = 0x7f0b2161
 
 @Suppress("unused")
 val saveInstantsPatch = bytecodePatch(
@@ -71,11 +71,11 @@ val saveInstantsPatch = bytecodePatch(
         requireStatusMethod("saveInstantsButton")
         hookStoryBind()
         val model = findInstantModel()
-        hookInstantRender(findInstantRender(model))
+        findInstantRenders(model).forEach { render -> hookInstantRender(render) }
         placeSaveButton(findMessageBox())
         fillMediaStub(model, findModelMediaField(model))
         fillStoryMediaStub()
-        fillVoiceBarId()
+        fillReplyBarId()
         enableStatus("saveInstantsButton")
     }
 }
@@ -114,28 +114,31 @@ internal fun BytecodePatchContext.findInstantModel(): String {
 }
 
 /**
- * The instant render: the one static method taking [model] as its third parameter among many,
- * which is where the feed hands each instant to be drawn. The render is the media component, told
- * by the Compose source marker naming its file, which Instagram keeps through obfuscation; the
- * attribution composable takes the model too, and only the marker tells them apart.
+ * The instant renders: every static method taking [model] as its third parameter among many whose
+ * code carries one of the QuickSnap source markers. The feed's media component draws the
+ * viewer's own instants and the archive preview, and the attribution composable draws the line
+ * naming who sent the instant the viewer is watching — the consumption surface. Each keeps its
+ * Compose source marker through obfuscation, so both are told from any other taker of the model.
  */
-internal fun BytecodePatchContext.findInstantRender(model: String): Method {
+internal fun BytecodePatchContext.findInstantRenders(model: String): List<Method> {
+    val markers = listOf("QuickSnapMediaComponent", "QuickSnapMediaAttribution")
     fun takesThird(method: Method): Boolean {
         if (!AccessFlags.STATIC.isSet(method.accessFlags)) return false
         if (method.parameterTypes.size <= 10 || method.parameterTypes.getOrNull(2)?.toString() != model) return false
-        return method.implementation?.instructions?.toList().orEmpty().any { instruction ->
+        val strings = method.implementation?.instructions?.toList().orEmpty().mapNotNull { instruction ->
             ((instruction as? ReferenceInstruction)?.reference as? StringReference)?.string
-                ?.contains("QuickSnapMediaComponent") == true
         }
+        return markers.any { marker -> strings.any { it.contains(marker) } }
     }
     val owners = mutableListOf<Pair<String, Method>>()
     classDefForEach { candidate ->
         candidate.methods.forEach { method -> if (takesThird(method)) owners.add(candidate.type to method) }
     }
-    return owners.singleOrNull()?.second ?: refuse(
-        "expected one render of the instant item, found " +
-            if (owners.isEmpty()) "none" else owners.joinToString { "${it.first}->${it.second.name}" },
-    )
+    val found = owners.map { it.second }
+    if (found.isEmpty()) {
+        refuse("expected the instant renders, found none")
+    }
+    return found
 }
 
 /**
@@ -212,18 +215,26 @@ internal fun BytecodePatchContext.fillMediaStub(model: String, field: FieldRefer
 }
 
 /**
+ * The story viewer's menu helper, found by the name Redex kept for it in a static field. The
+ * helper holds the story or instant on screen, and its builders read that item's Media.
+ */
+internal fun BytecodePatchContext.findStoryHelper(): ClassDef {
+    val helpers = mutableListOf<ClassDef>()
+    classDefForEach { classDef -> if (classDef.originalName() == HELPER_NAME) helpers += classDef }
+    return helpers.singleOrNull() ?: refuse(
+        "expected one class named $HELPER_NAME, found " +
+            if (helpers.isEmpty()) "none" else helpers.joinToString { it.type },
+    )
+}
+
+/**
  * Hands the story viewer's current item to the extension whenever it changes: every write of the
  * story menu helper's story field, the item of the story or instant on screen, calls the
  * extension on its way in. The helper is found by the name Redex kept for it, so the hook
  * survives Instagram's renames.
  */
 internal fun BytecodePatchContext.hookStoryBind() {
-    val helpers = mutableListOf<ClassDef>()
-    classDefForEach { classDef -> if (classDef.originalName() == HELPER_NAME) helpers += classDef }
-    val helper = helpers.singleOrNull() ?: refuse(
-        "expected one class named $HELPER_NAME, found " +
-            if (helpers.isEmpty()) "none" else helpers.joinToString { it.type },
-    )
+    val helper = findStoryHelper()
     val storyField = helper.fields.singleOrNull { field ->
         field.type == REEL_ITEM && !AccessFlags.STATIC.isSet(field.accessFlags)
     } ?: refuse("the $HELPER_NAME helper holds no story")
@@ -255,13 +266,23 @@ internal fun BytecodePatchContext.hookStoryBind() {
 }
 
 /**
- * Fills the extension's story stub: the Media of the story or instant the viewer holds, the one
- * Media field the item class keeps, the same read the story menu's builders make.
+ * Fills the extension's story stub: the Media of the story or instant the viewer holds. ReelItem
+ * keeps two Media fields; the one that matters is the one the story menu's own builders read, so
+ * the helper's reads decide, the way Download any story's do.
  */
 internal fun BytecodePatchContext.fillStoryMediaStub() {
-    val classDef = classDefByOrNull(REEL_ITEM) ?: refuse("this build has no $REEL_ITEM")
-    val field = classDef.fields.singleOrNull { it.type == MEDIA && !AccessFlags.STATIC.isSet(it.accessFlags) }
-        ?: refuse("${REEL_ITEM} keeps no single Media field")
+    val helper = findStoryHelper()
+    val reads = helper.methods.flatMap { method ->
+        method.implementation?.instructions?.mapNotNull { instruction ->
+            if (instruction.opcode != Opcode.IGET_OBJECT) return@mapNotNull null
+            val field = (instruction as? ReferenceInstruction)?.reference as? FieldReference ?: return@mapNotNull null
+            if (field.definingClass == REEL_ITEM && field.type == MEDIA) field else null
+        }.orEmpty()
+    }.distinct()
+    val field = reads.singleOrNull() ?: refuse(
+        "the story menu's builders read ${reads.size} Media fields of $REEL_ITEM, not one: " +
+            reads.joinToString { it.name },
+    )
     val stub = mutableClassDefBy(INSTANTS_SAVE).methods.single {
         it.name == "storyMedia" && it.returnType == "Ljava/lang/Object;" &&
             it.parameterTypes.map(Any::toString) == listOf("Ljava/lang/Object;")
@@ -277,9 +298,9 @@ internal fun BytecodePatchContext.fillStoryMediaStub() {
 }
 
 /** Fills the extension's reply-bar id stub with the id aapt2 names on this build. */
-internal fun BytecodePatchContext.fillVoiceBarId() {
+internal fun BytecodePatchContext.fillReplyBarId() {
     val stub = mutableClassDefBy(INSTANTS_SAVE).methods.single {
-        it.name == "voiceBarId" && it.returnType == "I" && it.parameterTypes.isEmpty()
+        it.name == "replyBarId" && it.returnType == "I" && it.parameterTypes.isEmpty()
     }
-    stub.returnEarly(VOICE_BAR_ID)
+    stub.returnEarly(REPLY_BAR_ID)
 }
