@@ -790,6 +790,9 @@ tasks.withType<Test>().configureEach {
     // Whole-fixture proofs need more than Gradle's default 512 MiB test-worker heap.
     maxHeapSize = "4g"
     jvmArgs("-XX:ActiveProcessorCount=2")
+    // A development machine may split one task's classes across forks. Default one, as the gate
+    // reads its results; the area tasks already run side by side under a parallel build.
+    maxParallelForks = (providers.gradleProperty("hushgramTestForks").orNull ?: "1").toInt()
     // The fixture tests skip when this is unset and read the folder when it is set. What the
     // folder holds is the input, not its name: a run whose APK was swapped, re-signed or deleted
     // under the same path has to run again, not come back up to date or out of the build cache

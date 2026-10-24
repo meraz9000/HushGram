@@ -1331,6 +1331,9 @@ android {
             // Each SDK and graphics mode a test asks for gets its own sandbox in this one JVM (six SDKs
             // so far). At 3877 tests 1g ran out loading SDK 32's resources for the last class to ask for it.
             it.maxHeapSize = "1536m"
+            // A development machine may split the suite's classes across forks. Default one, as a
+            // release reads its results.
+            it.maxParallelForks = (providers.gradleProperty("hushgramTestForks").orNull ?: "1").toInt()
             // LicenseNoticeTest holds NOTICE against the copy generated into the payload, and
             // NOTICE is outside this module, so without this Gradle calls the task up to date
             // after NOTICE changes and the comparison never runs.
