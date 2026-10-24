@@ -2,3 +2,25 @@
 # One path|name per line. ObfuscatedIdentityTest fails on a name found in the code that is not
 # listed here, and on a line here that no longer matches the code, so this list can only shrink.
 # The patches resolve every such name while patching, which is why this list is empty.
+
+# Keep instants unseen: the QuickSnap viewer, fetcher, repository and seen-manager members this
+# feature must reach. Each name is resolved from that build's class shape and the patch stops
+# applying when it moves, rather than silently touching the wrong member; the reasons are below.
+# Shorten this list as stable anchors replace the direct reads.
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A00
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A01
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A05
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A06
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0A
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0B
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0C
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0H
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0U
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A00
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A01
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A02
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A03
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A04
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A05
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A06
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A0C

@@ -25,6 +25,8 @@ class DefaultSelectionPolicyTest {
         "Pure black dark mode" to "Rewrites Instagram's colors when you patch, with no switch to turn it off.",
         "Add photos from the gallery to instants" to "Feeds a picked picture through the camera's send " +
             "pipeline, and the README's ban precaution keeps that class of feature a choice made in Expert mode.",
+        "Keep instants unseen" to "A viewing feature that leaves instants unseen on Instagram's side until the " +
+            "eye button marks one, so it stays an Expert mode choice.",
         "Save button on stories and instants" to "A save for the Instants people send you, which the README leaves " +
             "out as a ban precaution, so it stays a choice made in Expert mode with everything known.",
         "View DM photos and videos anonymously" to "A test feature until the sender's side is checked " +

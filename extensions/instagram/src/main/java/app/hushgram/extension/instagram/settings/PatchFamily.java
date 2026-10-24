@@ -116,6 +116,7 @@ public enum PatchFamily {
     SAVE_INSTANTS_BUTTON(FamilyNames.SAVE_INSTANTS_BUTTON, "saveInstantsButton", null,
             Settings.SAVE_INSTANTS_BUTTON),
     GALLERY_INSTANTS(FamilyNames.GALLERY_INSTANTS, "galleryInstants", null, Settings.GALLERY_INSTANTS),
+    KEEP_INSTANTS(FamilyNames.KEEP_INSTANTS, "keepInstants", null, Settings.KEEP_INSTANTS),
     SHARE_SHEET(FamilyNames.SHARE_SHEET, "shareSheet", null, Settings.HIDE_SHARE_SHEET_GROUP),
     REPOST_BUTTON(FamilyNames.REPOST_BUTTON, "repostButton", null, Settings.HIDE_REPOST_BUTTON),
     HIDE_SHARE_BUTTON(FamilyNames.HIDE_SHARE_BUTTON, "hideShareButton", null, Settings.HIDE_SHARE_BUTTON),

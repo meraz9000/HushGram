@@ -823,6 +823,13 @@ public class Settings extends BaseSettings {
             new BooleanSetting("hushgram_gallery_instants", FALSE);
 
     /**
+     * Viewed instants stay unseen until the eye button marks one seen
+     * ({@link app.hushgram.extension.instagram.download.InstantsSeen}). Off to start.
+     */
+    public static final BooleanSetting KEEP_INSTANTS =
+            new BooleanSetting("hushgram_keep_instants_unseen", FALSE);
+
+    /**
      * The New group button beside the share sheet's search bar, whichever form Instagram gives it,
      * and the button that sends to the people you picked there as a group. Off to start.
      */

@@ -250,6 +250,11 @@ public final class SettingsStatus {
         return false;
     }
 
+    /** Rewritten by the Keep instants unseen patch. */
+    public static boolean keepInstants() {
+        return false;
+    }
+
     public static boolean profileTabs() {
         return false;
     }

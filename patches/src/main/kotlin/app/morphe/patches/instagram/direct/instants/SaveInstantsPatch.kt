@@ -146,7 +146,7 @@ internal fun BytecodePatchContext.findInstantRenders(model: String): List<Method
  * one the Save button would save. The item is the render's third parameter; nothing before it
  * takes more than one register.
  */
-internal fun BytecodePatchContext.hookInstantRender(render: Method) {
+internal fun BytecodePatchContext.hookInstantRender(render: Method, hook: String = ON_VIEW) {
     val mutable = mutableClassDefBy(render.definingClass).methods.single {
         it.name == render.name && it.parameterTypes == render.parameterTypes
     }
@@ -154,7 +154,7 @@ internal fun BytecodePatchContext.hookInstantRender(render: Method) {
         if (it.toString() == "J" || it.toString() == "D") 2 else 1
     }
     val item = base + 2
-    val call = if (item <= 15) "invoke-static { v$item }, $ON_VIEW" else "invoke-static/range { v$item .. v$item }, $ON_VIEW"
+    val call = if (item <= 15) "invoke-static { v$item }, $hook" else "invoke-static/range { v$item .. v$item }, $hook"
     mutable.addInstructions(0, call)
 }
 
@@ -233,7 +233,7 @@ internal fun BytecodePatchContext.findStoryHelper(): ClassDef {
  * extension on its way in. The helper is found by the name Redex kept for it, so the hook
  * survives Instagram's renames.
  */
-internal fun BytecodePatchContext.hookStoryBind() {
+internal fun BytecodePatchContext.hookStoryBind(hook: String = ON_STORY) {
     val helper = findStoryHelper()
     val storyField = helper.fields.singleOrNull { field ->
         field.type == REEL_ITEM && !AccessFlags.STATIC.isSet(field.accessFlags)
@@ -255,8 +255,8 @@ internal fun BytecodePatchContext.hookStoryBind() {
             }
             writes.forEach { index ->
                 val value = (mutable.implementation!!.instructions[index] as TwoRegisterInstruction).registerA
-                val call = if (value <= 15) "invoke-static { v$value }, $ON_STORY"
-                else "invoke-static/range { v$value .. v$value }, $ON_STORY"
+                val call = if (value <= 15) "invoke-static { v$value }, $hook"
+                else "invoke-static/range { v$value .. v$value }, $hook"
                 mutable.addInstructions(index + 1, call)
             }
             hooks += writes.size
