@@ -36,9 +36,10 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The Save button on instants: the instant render hands the item model to the extension as it
- * starts, the message box composer hands its three buttons over as it's made, and the extension's
- * media stub reads the model's Media. Checked on the declared build and every other build of the
+ * The Save button on stories and long-press instants: the instant render hands the item model to
+ * the extension as it starts, the viewer's long-press constructor wraps its callback, the message
+ * box composer hands its three buttons over as it's made, and the extension's media stub reads
+ * the model's Media. Checked on the declared build and every other build of the
  * version, with a stand-in refusal, and the extension's own hooks declared.
  */
 class SaveInstantsHookTest {
@@ -47,7 +48,7 @@ class SaveInstantsHookTest {
         val declared = ExtensionDex.classDef(INSTANTS_SAVE).methods
             .filter { AccessFlags.PUBLIC.isSet(it.accessFlags) && AccessFlags.STATIC.isSet(it.accessFlags) }
             .map { "${it.name}(${it.parameterTypes.joinToString("")})${it.returnType}" }
-        for (hook in listOf(ON_VIEW, COMPOSER_HOOK, MEDIA_STUB)) {
+        for (hook in listOf(ON_INSTANT, ON_STORY, WRAP_LONG_PRESS, COMPOSER_HOOK, MEDIA_STUB)) {
             assertTrue("$hook is not in the extension: $declared", hook.substringAfter("->") in declared)
         }
     }
@@ -101,6 +102,7 @@ class SaveInstantsHookTest {
                     } == true
                 }
                 val keep = candidate.type == ROOM_LOADER || marker || writesAReelItem ||
+                    candidate.type.startsWith(LONG_PRESS_PREFIX) ||
                     candidate.type == REEL_ITEM ||
                     candidate.methods.any { method ->
                         method.name == "<init>" && method.parameterTypes.firstOrNull()?.toString() == MEDIA &&
@@ -137,7 +139,8 @@ class SaveInstantsHookTest {
         val site = context.findMessageBox()
         context.hideMessageBoxButtons(site)
         context.hookStoryBind()
-        renders.forEach { render -> context.hookInstantRender(render) }
+        renders.forEach { render -> context.hookInstantRender(render, ON_INSTANT) }
+        context.hookLongPress()
         context.placeSaveButton(site)
         context.fillMediaStub(model, context.findModelMediaField(model))
         context.fillStoryMediaStub()
@@ -150,9 +153,23 @@ class SaveInstantsHookTest {
                 it.name == render.name && it.parameterTypes == render.parameterTypes
             }
             val code = hooked.implementation!!.instructions.toList()
-            assertEquals("$label: the render's bind isn't the first instruction", ON_VIEW, code.first().reference())
-            assertEquals(1, code.count { it.reference() == ON_VIEW })
+            assertEquals("$label: the render's bind isn't the first instruction", ON_INSTANT, code.first().reference())
+            assertEquals(1, code.count { it.reference() == ON_INSTANT })
         }
+
+        // The viewer's long-press constructor wraps its callback before it returns.
+        var longPressType: String? = null
+        context.classDefForEach { classDef ->
+            if (classDef.type.startsWith(LONG_PRESS_PREFIX)) longPressType = classDef.type
+        }
+        assertTrue("$label: no long-press handler", longPressType != null)
+        val longPress = context.mutableClassDefBy(longPressType!!).methods.single {
+            it.name == "<init>" && it.parameterTypes.size == 6
+        }
+        assertTrue(
+            "$label: the long-press callback isn't wrapped",
+            longPress.implementation!!.instructions.toList().any { it.reference() == WRAP_LONG_PRESS },
+        )
 
         // The composer hands its three views over beside the message box's own hook.
         val constructor = context.mutableClassDefBy(site.type).methods.single { it.name == "<init>" }

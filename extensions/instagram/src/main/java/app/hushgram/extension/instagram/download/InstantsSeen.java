@@ -229,6 +229,59 @@ public final class InstantsSeen {
     }
 
     /**
+     * Marks the instant on screen seen and moves to the next one. Used by the long-press save:
+     * it replays the kept consumption with the seen write forced, drops the instant from the tray
+     * and fetcher state, asks the viewer's own close path to sync it to Instagram now, and calls
+     * the viewer's next action. Answers whether it could do all of that; when it cannot, the
+     * long-press save leaves Instagram's own action alone. Never throws.
+     */
+    public static boolean seenAndAdvance() {
+        try {
+            Object[] consume = lastConsume;
+            Object current = currentItem != null ? currentItem
+                : consume == null || consume.length < 2 ? null : consume[1];
+            if (consume == null || consume.length != 4 || consume[0] == null || current == null) {
+                return false;
+            }
+            Object viewModel = field(consume[0], "receiver");
+            if (viewModel == null) {
+                return false;
+            }
+            Object id = mediaId(current);
+            boolean before = force;
+            force = true;
+            try {
+                Method invoke = consume[0].getClass().getMethod(
+                    "invoke", Object.class, Object.class, Object.class);
+                invoke.invoke(consume[0], current, consume[2], consume[3]);
+            } finally {
+                force = before;
+            }
+            if (id != null) {
+                String key = String.valueOf(id);
+                EYE_IDS.add(key);
+                dropFromTray(viewModel, java.util.Collections.singleton(key));
+            }
+            try {
+                viewModel.getClass().getMethod("A14").invoke(viewModel);
+            } catch (Throwable t) {
+                HookStatus.threw(FamilyNames.KEEP_INSTANTS, "long-press seen sync", t);
+            }
+            try {
+                viewModel.getClass().getMethod("A16", Integer.class).invoke(viewModel, 1);
+            } catch (Throwable t) {
+                HookStatus.threw(FamilyNames.KEEP_INSTANTS, "long-press next", t);
+            }
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
+                "long-press seen and advanced id=" + tag(id));
+            return true;
+        } catch (Throwable t) {
+            HookStatus.threw(FamilyNames.KEEP_INSTANTS, "long-press seen", t);
+            return false;
+        }
+    }
+
+    /**
      * Takes the eye's ids out of the tray and the fetcher's stored state. The fetcher's merge
      * keeps old items whose ids the server still calls valid, so leaving them there makes a
      * marked instant reappear on the next fetch. Never throws.
@@ -285,13 +338,18 @@ public final class InstantsSeen {
             return state;
         }
         try {
-            Object[] values = new Object[13];
-            for (int index = 0; index < values.length; index++) {
-                String name = index < 10
-                    ? "A0" + index
-                    : "A0" + (char) ('A' + index - 10);
+            // The constructor takes its fields in a different order from their letters: the three
+            // lists are (A0B items, A0C, A0A). Reading them by name here keeps the state the same
+            // shape as the one it replaces; the items list, A0B, is the one to filter.
+            String[] order = {
+                "A00", "A03", "A02", "A01", "A04", "A07", "A08",
+                "A06", "A05", "A09", "A0B", "A0C", "A0A",
+            };
+            Object[] values = new Object[order.length];
+            for (int index = 0; index < order.length; index++) {
+                String name = order[index];
                 Object value = field(state, name);
-                if (index == 11 && value instanceof java.util.List) {
+                if ("A0B".equals(name) && value instanceof java.util.List) {
                     java.util.ArrayList<Object> kept = new java.util.ArrayList<>();
                     for (Object item : (java.util.List<?>) value) {
                         Object itemId = item == null ? null : field(item, "A0C");
@@ -324,28 +382,6 @@ public final class InstantsSeen {
     }
 
     /**
-     * Called with the single media id of a seen request. Answers true when the request should be
-     * answered false without sending; the repository then leaves the instant in its list.
-     */
-    public static boolean beforeSeenRequestId(@Nullable String mediaId) {
-        try {
-            boolean skip = on() && !force;
-            String callers = callers();
-            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
-                "single seen id=" + tag(mediaId) + " skip=" + skip + " force=" + force
-                    + " callers=" + callers);
-            if (!skip) {
-                return false;
-            }
-            HookStatus.counted(FamilyNames.KEEP_INSTANTS, "kept a seen request from sending");
-            return true;
-        } catch (Throwable t) {
-            HookStatus.threw(FamilyNames.KEEP_INSTANTS, "seen request", t);
-            return false;
-        }
-    }
-
-    /**
      * Called at the bulk fetcher's seen entry. Answers true when its update should be skipped
      * entirely: the fetcher would otherwise replace its tray state from the API response, which
      * can drop every instant on screen. The eye button forces the real update through.
@@ -353,13 +389,21 @@ public final class InstantsSeen {
     public static boolean beforeFetcherSeen(Object fetcher, @Nullable java.util.List<?> ids) {
         try {
             boolean skip = on() && !force;
-            if (skip && containsEyeId(ids)) {
+            int pending;
+            synchronized (EYE_IDS) {
+                pending = EYE_IDS.size();
+            }
+            if (skip && (pending > 0 || containsEyeId(ids))) {
+                // A long-press sync can arrive with a list the manager has not caught up with yet;
+                // the pending eye ids are what the request filter keeps, so let it through.
                 skip = false;
             }
             final boolean skipLogged = skip;
+            final int pendingLogged = pending;
             String callers = callers();
             Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
-                "fetcher seen skip=" + skipLogged + " force=" + force + " callers=" + callers);
+                "fetcher seen skip=" + skipLogged + " force=" + force + " pending=" + pendingLogged
+                    + " callers=" + callers);
             if (!skip) {
                 return false;
             }

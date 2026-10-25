@@ -44,7 +44,7 @@ class KeepInstantsUnseenHookTest {
             .map { "${it.name}(${it.parameterTypes.joinToString("")})${it.returnType}" }
         for (hook in listOf(
             ON_SEEN_VIEW, ON_SEEN_STORY, ON_CONSUME, BEFORE_SEEN_WRITE,
-            FILTER_SEEN_IDS, BEFORE_SEEN_REQUEST_ID, BEFORE_FETCHER_SEEN, FETCHER_STATE,
+            FILTER_SEEN_IDS, BEFORE_FETCHER_SEEN, FETCHER_STATE,
             SEEN_MAINTENANCE, EMPTY_SEEN, BEFORE_SEEN_LIST, FETCH_DECISION, VIEWER_CLOSE,
         )) {
             assertTrue("$hook is not in the extension: $declared", hook.substringAfter("->") in declared)
@@ -81,7 +81,6 @@ class KeepInstantsUnseenHookTest {
         context.hookSeenManagerMaintenance(manager)
         context.hookSeenRequest()
         context.hookFetcherSeen()
-        context.hookSingleSeenRequest()
         context.hookViewerClose()
         context.hookFetcherFetch()
         context.enableStatus("keepInstants")

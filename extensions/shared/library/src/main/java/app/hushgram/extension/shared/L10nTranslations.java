@@ -50,7 +50,7 @@ public final class L10nTranslations {
     }
 
     private static Map<String, String> buildDe() {
-        Map<String, String> table = new HashMap<>(2226);
+        Map<String, String> table = new HashMap<>(2228);
         fillDe0(table);
         fillDe1(table);
         fillDe2(table);
@@ -1977,6 +1977,8 @@ public final class L10nTranslations {
                 "Entferne Meta AI aus der Suche, deinem Feed, Reels und Profilen.");
         table.put("Take buttons you don't use off posts and the share sheet.",
                 "Entferne Schaltfl\u00e4chen, die du nicht nutzt, von Beitr\u00e4gen und aus dem Teilen-Men\u00fc.");
+        table.put("Take one normal Instants photo first",
+                "Nimm zuerst ein normales Instants-Foto auf");
         table.put("Takes Create off the tab bar and closes up the gap. Restart Instagram to see the change.",
                 "Entfernt Erstellen aus der Tab-Leiste, und die L\u00fccke schlie\u00dft sich. Starte Instagram neu, um die \u00c4nderung zu sehen.");
         table.put("Takes Home off the tab bar. Your Start tab opens wherever Home would, so pick one other than Home that's on the bar, or Home stays. Restart Instagram to see the change.",
@@ -2037,11 +2039,11 @@ public final class L10nTranslations {
                 "Entfernt das Plus f\u00fcr neue Beitr\u00e4ge oben auf deinem eigenen Profil. Die anderen Schaltfl\u00e4chen bleiben, wo sie waren.");
         table.put("Takes the row of notes off the top of your messages, the Map bubble in it too. Your chats, search and requests stay.",
                 "Entfernt die Reihe mit Notizen oben in deinen Nachrichten, auch die Karte darin. Deine Chats, die Suche und Anfragen bleiben.");
-        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
-                "Entfernt die Reihe mit Schnell-Emojis \u00fcber dem Kommentarfeld. Das Feld selbst bleibt.");
     }
 
     private static void fillDe16(Map<String, String> table) {
+        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
+                "Entfernt die Reihe mit Schnell-Emojis \u00fcber dem Kommentarfeld. Das Feld selbst bleibt.");
         table.put("Takes the row of story highlights off profiles, yours included. Bios, counts and posts stay, and so does Add to highlight on your stories.",
                 "Entfernt die Reihe mit Story-Highlights von Profilen, auch von deinem. Bios, Zahlen und Beitr\u00e4ge bleiben, ebenso \u201eZu Highlight hinzuf\u00fcgen\u201c in deinen Storys.");
         table.put("Takes the search bar and its Filter button off the top of your messages, the Meta AI bar too. Your chats, notes and requests stay.",
@@ -2160,11 +2162,11 @@ public final class L10nTranslations {
                 "Verbleibende Zeit");
         table.put("Time posted",
                 "Uhrzeit des Postens");
-        table.put("To open Messages here, turn on Show the Messages tab and restart.",
-                "Um die Nachrichten hier zu \u00f6ffnen, schalte \u201eNachrichten-Tab anzeigen\u201c ein und starte neu.");
     }
 
     private static void fillDe17(Map<String, String> table) {
+        table.put("To open Messages here, turn on Show the Messages tab and restart.",
+                "Um die Nachrichten hier zu \u00f6ffnen, schalte \u201eNachrichten-Tab anzeigen\u201c ein und starte neu.");
         table.put("To open Search here, turn off Hide the Search tab and restart.",
                 "Um die Suche hier zu \u00f6ffnen, schalte \u201eDen Suche-Tab ausblenden\u201c aus und starte neu.");
         table.put("Too many tries. Wait %1$d seconds.",
@@ -2283,11 +2285,11 @@ public final class L10nTranslations {
                 "Angesehene Instants bleiben ungesehen, bis du auf den Augen-Button tippst");
         table.put("Voice message",
                 "Sprachnachricht");
-        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
-                "Lauter erh\u00f6ht weiterhin die Lautst\u00e4rke des Telefons, aber ein stummes Reel bleibt stumm, bis du es selbst einschaltest.");
     }
 
     private static void fillDe18(Map<String, String> table) {
+        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
+                "Lauter erh\u00f6ht weiterhin die Lautst\u00e4rke des Telefons, aber ein stummes Reel bleibt stumm, bis du es selbst einschaltest.");
         table.put("Wait after auto scroll",
                 "Nach automatischem Scrollen warten");
         table.put("Wait for a tap to find it",
@@ -2357,7 +2359,7 @@ public final class L10nTranslations {
     }
 
     private static Map<String, String> buildEs() {
-        Map<String, String> table = new HashMap<>(2226);
+        Map<String, String> table = new HashMap<>(2228);
         fillEs0(table);
         fillEs1(table);
         fillEs2(table);
@@ -4284,6 +4286,8 @@ public final class L10nTranslations {
                 "Quita Meta AI de la b\u00fasqueda, tu feed, los reels y los perfiles.");
         table.put("Take buttons you don't use off posts and the share sheet.",
                 "Quita de las publicaciones y del men\u00fa para compartir los botones que no usas.");
+        table.put("Take one normal Instants photo first",
+                "Primero haz una foto normal de Instants");
         table.put("Takes Create off the tab bar and closes up the gap. Restart Instagram to see the change.",
                 "Quita Crear de la barra de pesta\u00f1as y cierra el hueco. Reinicia Instagram para ver el cambio.");
         table.put("Takes Home off the tab bar. Your Start tab opens wherever Home would, so pick one other than Home that's on the bar, or Home stays. Restart Instagram to see the change.",
@@ -4344,11 +4348,11 @@ public final class L10nTranslations {
                 "Quita el m\u00e1s para publicaciones nuevas de la parte de arriba de tu propio perfil. Los dem\u00e1s botones se quedan donde estaban.");
         table.put("Takes the row of notes off the top of your messages, the Map bubble in it too. Your chats, search and requests stay.",
                 "Quita la fila de notas de la parte superior de tus mensajes, incluida la burbuja del Mapa. Tus chats, la b\u00fasqueda y las solicitudes se quedan.");
-        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
-                "Quita la fila de emojis r\u00e1pidos que aparece sobre el cuadro de comentarios. El cuadro se queda.");
     }
 
     private static void fillEs16(Map<String, String> table) {
+        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
+                "Quita la fila de emojis r\u00e1pidos que aparece sobre el cuadro de comentarios. El cuadro se queda.");
         table.put("Takes the row of story highlights off profiles, yours included. Bios, counts and posts stay, and so does Add to highlight on your stories.",
                 "Quita la fila de historias destacadas de los perfiles, incluido el tuyo. Las biograf\u00edas, los contadores y las publicaciones se quedan, y tambi\u00e9n A\u00f1adir a destacadas en tus historias.");
         table.put("Takes the search bar and its Filter button off the top of your messages, the Meta AI bar too. Your chats, notes and requests stay.",
@@ -4467,11 +4471,11 @@ public final class L10nTranslations {
                 "Tiempo restante");
         table.put("Time posted",
                 "Hora de publicaci\u00f3n");
-        table.put("To open Messages here, turn on Show the Messages tab and restart.",
-                "Para abrir Mensajes aqu\u00ed, activa Mostrar la pesta\u00f1a Mensajes y reinicia.");
     }
 
     private static void fillEs17(Map<String, String> table) {
+        table.put("To open Messages here, turn on Show the Messages tab and restart.",
+                "Para abrir Mensajes aqu\u00ed, activa Mostrar la pesta\u00f1a Mensajes y reinicia.");
         table.put("To open Search here, turn off Hide the Search tab and restart.",
                 "Para abrir B\u00fasqueda aqu\u00ed, desactiva Ocultar la pesta\u00f1a de B\u00fasqueda y reinicia.");
         table.put("Too many tries. Wait %1$d seconds.",
@@ -4590,11 +4594,11 @@ public final class L10nTranslations {
                 "Las Instant\u00e1neas que ves siguen sin ver hasta que tocas el bot\u00f3n del ojo");
         table.put("Voice message",
                 "Mensaje de voz");
-        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
-                "Subir el volumen sigue subiendo el volumen del tel\u00e9fono, pero un reel silenciado sigue silenciado hasta que lo actives.");
     }
 
     private static void fillEs18(Map<String, String> table) {
+        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
+                "Subir el volumen sigue subiendo el volumen del tel\u00e9fono, pero un reel silenciado sigue silenciado hasta que lo actives.");
         table.put("Wait after auto scroll",
                 "Esperar tras el desplazamiento autom\u00e1tico");
         table.put("Wait for a tap to find it",
@@ -4664,7 +4668,7 @@ public final class L10nTranslations {
     }
 
     private static Map<String, String> buildIn() {
-        Map<String, String> table = new HashMap<>(2226);
+        Map<String, String> table = new HashMap<>(2228);
         fillIn0(table);
         fillIn1(table);
         fillIn2(table);
@@ -6591,6 +6595,8 @@ public final class L10nTranslations {
                 "Hapus Meta AI dari pencarian, feed, reel, dan profil.");
         table.put("Take buttons you don't use off posts and the share sheet.",
                 "Hapus tombol yang tidak kamu pakai dari postingan dan lembar berbagi.");
+        table.put("Take one normal Instants photo first",
+                "Ambil satu foto Instants biasa dulu");
         table.put("Takes Create off the tab bar and closes up the gap. Restart Instagram to see the change.",
                 "Menghapus Buat dari bilah tab dan menutup celahnya. Mulai ulang Instagram untuk melihat perubahannya.");
         table.put("Takes Home off the tab bar. Your Start tab opens wherever Home would, so pick one other than Home that's on the bar, or Home stays. Restart Instagram to see the change.",
@@ -6651,11 +6657,11 @@ public final class L10nTranslations {
                 "Menghapus tanda plus untuk postingan baru dari bagian atas profilmu sendiri. Tombol lainnya tetap di tempatnya.");
         table.put("Takes the row of notes off the top of your messages, the Map bubble in it too. Your chats, search and requests stay.",
                 "Menghapus baris catatan dari bagian atas pesan, termasuk gelembung Peta di dalamnya. Chat, pencarian, dan permintaan pesan tetap ada.");
-        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
-                "Menghapus baris emoji cepat di atas kotak komentar. Kotaknya tetap ada.");
     }
 
     private static void fillIn16(Map<String, String> table) {
+        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
+                "Menghapus baris emoji cepat di atas kotak komentar. Kotaknya tetap ada.");
         table.put("Takes the row of story highlights off profiles, yours included. Bios, counts and posts stay, and so does Add to highlight on your stories.",
                 "Menghapus baris sorotan cerita dari profil, termasuk profilmu. Bio, jumlah, dan postingan tetap ada, begitu juga Tambahkan ke sorotan di ceritamu.");
         table.put("Takes the search bar and its Filter button off the top of your messages, the Meta AI bar too. Your chats, notes and requests stay.",
@@ -6774,11 +6780,11 @@ public final class L10nTranslations {
                 "Sisa waktu");
         table.put("Time posted",
                 "Jam diposting");
-        table.put("To open Messages here, turn on Show the Messages tab and restart.",
-                "Untuk membuka Pesan di sini, aktifkan Tampilkan tab Pesan lalu mulai ulang.");
     }
 
     private static void fillIn17(Map<String, String> table) {
+        table.put("To open Messages here, turn on Show the Messages tab and restart.",
+                "Untuk membuka Pesan di sini, aktifkan Tampilkan tab Pesan lalu mulai ulang.");
         table.put("To open Search here, turn off Hide the Search tab and restart.",
                 "Untuk membuka Cari di sini, nonaktifkan Sembunyikan tab Cari lalu mulai ulang.");
         table.put("Too many tries. Wait %1$d seconds.",
@@ -6897,11 +6903,11 @@ public final class L10nTranslations {
                 "Instants yang kamu lihat tetap belum dilihat sampai kamu mengetuk tombol mata");
         table.put("Voice message",
                 "Pesan suara");
-        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
-                "Tombol volume naik tetap menaikkan volume ponsel, tetapi reel yang dibisukan tetap bisu sampai kamu menyalakannya.");
     }
 
     private static void fillIn18(Map<String, String> table) {
+        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
+                "Tombol volume naik tetap menaikkan volume ponsel, tetapi reel yang dibisukan tetap bisu sampai kamu menyalakannya.");
         table.put("Wait after auto scroll",
                 "Tunggu setelah gulir otomatis");
         table.put("Wait for a tap to find it",
@@ -6971,7 +6977,7 @@ public final class L10nTranslations {
     }
 
     private static Map<String, String> buildIt() {
-        Map<String, String> table = new HashMap<>(2226);
+        Map<String, String> table = new HashMap<>(2228);
         fillIt0(table);
         fillIt1(table);
         fillIt2(table);
@@ -8898,6 +8904,8 @@ public final class L10nTranslations {
                 "Togli Meta AI dalla ricerca, dal feed, dai reel e dai profili.");
         table.put("Take buttons you don't use off posts and the share sheet.",
                 "Togli da post e foglio di condivisione i pulsanti che non usi.");
+        table.put("Take one normal Instants photo first",
+                "Prima scatta una foto Instants normale");
         table.put("Takes Create off the tab bar and closes up the gap. Restart Instagram to see the change.",
                 "Toglie Crea dalla barra delle schede e chiude lo spazio. Riavvia Instagram per vedere la modifica.");
         table.put("Takes Home off the tab bar. Your Start tab opens wherever Home would, so pick one other than Home that's on the bar, or Home stays. Restart Instagram to see the change.",
@@ -8958,11 +8966,11 @@ public final class L10nTranslations {
                 "Toglie il pi\u00f9 per i nuovi post dalla parte alta del tuo profilo. Gli altri pulsanti restano dove erano.");
         table.put("Takes the row of notes off the top of your messages, the Map bubble in it too. Your chats, search and requests stay.",
                 "Toglie la riga delle note dalla parte alta dei tuoi messaggi, compresa la bolla della mappa. Le tue chat, la ricerca e le richieste restano.");
-        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
-                "Toglie la riga di emoji rapide sopra la casella dei commenti. La casella resta.");
     }
 
     private static void fillIt16(Map<String, String> table) {
+        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
+                "Toglie la riga di emoji rapide sopra la casella dei commenti. La casella resta.");
         table.put("Takes the row of story highlights off profiles, yours included. Bios, counts and posts stay, and so does Add to highlight on your stories.",
                 "Toglie la riga delle storie in evidenza dai profili, compreso il tuo. Bio, conteggi e post restano, e cos\u00ec Aggiungi a In evidenza sulle tue storie.");
         table.put("Takes the search bar and its Filter button off the top of your messages, the Meta AI bar too. Your chats, notes and requests stay.",
@@ -9081,11 +9089,11 @@ public final class L10nTranslations {
                 "Tempo rimasto");
         table.put("Time posted",
                 "Ora di pubblicazione");
-        table.put("To open Messages here, turn on Show the Messages tab and restart.",
-                "Per aprire i Messaggi da qui, attiva Mostra la scheda Messaggi e riavvia.");
     }
 
     private static void fillIt17(Map<String, String> table) {
+        table.put("To open Messages here, turn on Show the Messages tab and restart.",
+                "Per aprire i Messaggi da qui, attiva Mostra la scheda Messaggi e riavvia.");
         table.put("To open Search here, turn off Hide the Search tab and restart.",
                 "Per aprire Cerca da qui, disattiva Nascondi la scheda Cerca e riavvia.");
         table.put("Too many tries. Wait %1$d seconds.",
@@ -9204,11 +9212,11 @@ public final class L10nTranslations {
                 "Gli instant visualizzati restano non visti finch\u00e9 non tocchi il pulsante dell'occhio");
         table.put("Voice message",
                 "Messaggio vocale");
-        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
-                "Alzare il volume aumenta comunque il volume del telefono, ma un reel muto resta muto finch\u00e9 non riattivi l'audio.");
     }
 
     private static void fillIt18(Map<String, String> table) {
+        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
+                "Alzare il volume aumenta comunque il volume del telefono, ma un reel muto resta muto finch\u00e9 non riattivi l'audio.");
         table.put("Wait after auto scroll",
                 "Aspetta dopo lo scorrimento automatico");
         table.put("Wait for a tap to find it",
@@ -9278,7 +9286,7 @@ public final class L10nTranslations {
     }
 
     private static Map<String, String> buildKo() {
-        Map<String, String> table = new HashMap<>(2226);
+        Map<String, String> table = new HashMap<>(2228);
         fillKo0(table);
         fillKo1(table);
         fillKo2(table);
@@ -11205,6 +11213,8 @@ public final class L10nTranslations {
                 "\uac80\uc0c9, \ud53c\ub4dc, \ub9b4\uc2a4, \ud504\ub85c\ud544\uc5d0\uc11c Meta AI\ub97c \uc5c6\uc571\ub2c8\ub2e4.");
         table.put("Take buttons you don't use off posts and the share sheet.",
                 "\uac8c\uc2dc\ubb3c\uacfc \uacf5\uc720 \uc2dc\ud2b8\uc5d0\uc11c \uc4f0\uc9c0 \uc54a\ub294 \ubc84\ud2bc\uc744 \uc5c6\uc571\ub2c8\ub2e4.");
+        table.put("Take one normal Instants photo first",
+                "\uba3c\uc800 \uc77c\ubc18 \uc778\uc2a4\ud134\ud2b8 \uc0ac\uc9c4\uc744 \ud55c \uc7a5 \ucc0d\uc73c\uc138\uc694");
         table.put("Takes Create off the tab bar and closes up the gap. Restart Instagram to see the change.",
                 "\ud558\ub2e8\ubc14\uc5d0\uc11c \ub9cc\ub4e4\uae30 \ud0ed\uc744 \uc81c\uac70\ud558\uace0 \ube48 \uc790\ub9ac\ub97c \uba54\uc6c1\ub2c8\ub2e4. \ubcc0\uacbd \uc0ac\ud56d\uc744 \ubcf4\ub824\uba74 Instagram\uc744 \ub2e4\uc2dc \uc2dc\uc791\ud558\uc138\uc694.");
         table.put("Takes Home off the tab bar. Your Start tab opens wherever Home would, so pick one other than Home that's on the bar, or Home stays. Restart Instagram to see the change.",
@@ -11265,11 +11275,11 @@ public final class L10nTranslations {
                 "\ub0b4 \ud504\ub85c\ud544 \uc0c1\ub2e8\uc5d0\uc11c \uc0c8 \uac8c\uc2dc\ubb3c\uc6a9 \ub354\ud558\uae30 \ubc84\ud2bc\uc744 \uc228\uae41\ub2c8\ub2e4. \ub2e4\ub978 \ubc84\ud2bc\uc740 \uc6d0\ub798 \uc790\ub9ac\uc5d0 \uadf8\ub300\ub85c \uc788\uc2b5\ub2c8\ub2e4.");
         table.put("Takes the row of notes off the top of your messages, the Map bubble in it too. Your chats, search and requests stay.",
                 "\uba54\uc2dc\uc9c0 \uc0c1\ub2e8\uc5d0\uc11c \uba54\ubaa8 \ubaa9\ub85d\uc744 \uc228\uae41\ub2c8\ub2e4. \ubaa9\ub85d \uc548\uc758 \uc9c0\ub3c4 \ubc84\ube14\ub3c4 \ud568\uaed8 \uc228\uaca8\uc9d1\ub2c8\ub2e4. \ucc44\ud305, \uac80\uc0c9 \ubc0f \uba54\uc2dc\uc9c0 \uc694\uccad\uc740 \uadf8\ub300\ub85c \uc720\uc9c0\ub429\ub2c8\ub2e4");
-        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
-                "\ub313\uae00 \uc785\ub825\ucc3d \uc704\uc5d0 \uc788\ub294 \ube60\ub978 \uc774\ubaa8\uc9c0 \uc904\uc744 \uc5c6\uc571\ub2c8\ub2e4. \uc785\ub825\ucc3d\uc740 \uadf8\ub300\ub85c \ud45c\uc2dc\ub429\ub2c8\ub2e4");
     }
 
     private static void fillKo16(Map<String, String> table) {
+        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
+                "\ub313\uae00 \uc785\ub825\ucc3d \uc704\uc5d0 \uc788\ub294 \ube60\ub978 \uc774\ubaa8\uc9c0 \uc904\uc744 \uc5c6\uc571\ub2c8\ub2e4. \uc785\ub825\ucc3d\uc740 \uadf8\ub300\ub85c \ud45c\uc2dc\ub429\ub2c8\ub2e4");
         table.put("Takes the row of story highlights off profiles, yours included. Bios, counts and posts stay, and so does Add to highlight on your stories.",
                 "\ubaa8\ub4e0 \ud504\ub85c\ud544\uc5d0\uc11c \uc2a4\ud1a0\ub9ac \ud558\uc774\ub77c\uc774\ud2b8 \ubaa9\ub85d\uc744 \uc228\uae41\ub2c8\ub2e4. \ub0b4 \ud504\ub85c\ud544\uc5d0\ub3c4 \uc801\uc6a9\ub429\ub2c8\ub2e4. \ud504\ub85c\ud544 \uc18c\uac1c, \ud314\ub85c\uc6cc & \ud314\ub85c\uc789 \uc218 \ubc0f \uac8c\uc2dc\ubb3c\uc740 \uadf8\ub300\ub85c \uc720\uc9c0\ub418\uba70, \ub0b4 \uc2a4\ud1a0\ub9ac\uc758 \u2018\ud558\uc774\ub77c\uc774\ud2b8\uc5d0 \ucd94\uac00\u2019 \uae30\ub2a5\ub3c4 \uadf8\ub300\ub85c \uc0ac\uc6a9\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4");
         table.put("Takes the search bar and its Filter button off the top of your messages, the Meta AI bar too. Your chats, notes and requests stay.",
@@ -11388,11 +11398,11 @@ public final class L10nTranslations {
                 "\ub0a8\uc740 \uc2dc\uac04");
         table.put("Time posted",
                 "\uac8c\uc2dc \uc2dc\uac04");
-        table.put("To open Messages here, turn on Show the Messages tab and restart.",
-                "\uc5ec\uae30\uc11c \uba54\uc2dc\uc9c0\ub97c \uc5f4\ub824\uba74 \uba54\uc2dc\uc9c0 \ud0ed \ud45c\uc2dc\ub97c \ucf1c\uace0 \ub2e4\uc2dc \uc2dc\uc791\ud558\uc138\uc694.");
     }
 
     private static void fillKo17(Map<String, String> table) {
+        table.put("To open Messages here, turn on Show the Messages tab and restart.",
+                "\uc5ec\uae30\uc11c \uba54\uc2dc\uc9c0\ub97c \uc5f4\ub824\uba74 \uba54\uc2dc\uc9c0 \ud0ed \ud45c\uc2dc\ub97c \ucf1c\uace0 \ub2e4\uc2dc \uc2dc\uc791\ud558\uc138\uc694.");
         table.put("To open Search here, turn off Hide the Search tab and restart.",
                 "\uc5ec\uae30\uc11c \uac80\uc0c9\uc744 \uc5f4\ub824\uba74 \uac80\uc0c9 \ud0ed \uc228\uae30\uae30\ub97c \ub044\uace0 \ub2e4\uc2dc \uc2dc\uc791\ud558\uc138\uc694.");
         table.put("Too many tries. Wait %1$d seconds.",
@@ -11511,11 +11521,11 @@ public final class L10nTranslations {
                 "\ub208 \ubc84\ud2bc\uc744 \ub204\ub97c \ub54c\uae4c\uc9c0 \ubcf8 \uc778\uc2a4\ud134\ud2b8\uac00 \uc77d\uc9c0 \uc54a\uc74c\uc73c\ub85c \uc720\uc9c0\ub429\ub2c8\ub2e4");
         table.put("Voice message",
                 "\uc74c\uc131 \uba54\uc2dc\uc9c0");
-        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
-                "\ubcfc\ub968 \uc62c\ub9ac\uae30\ub294 \ud734\ub300\ud3f0 \ubcfc\ub968\uc744 \uadf8\ub300\ub85c \uc62c\ub9ac\uc9c0\ub9cc, \uc74c\uc18c\uac70\ub41c \ub9b4\uc2a4\ub294 \uc9c1\uc811 \ucf24 \ub54c\uae4c\uc9c0 \uc74c\uc18c\uac70\ub85c \uc720\uc9c0\ub429\ub2c8\ub2e4.");
     }
 
     private static void fillKo18(Map<String, String> table) {
+        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
+                "\ubcfc\ub968 \uc62c\ub9ac\uae30\ub294 \ud734\ub300\ud3f0 \ubcfc\ub968\uc744 \uadf8\ub300\ub85c \uc62c\ub9ac\uc9c0\ub9cc, \uc74c\uc18c\uac70\ub41c \ub9b4\uc2a4\ub294 \uc9c1\uc811 \ucf24 \ub54c\uae4c\uc9c0 \uc74c\uc18c\uac70\ub85c \uc720\uc9c0\ub429\ub2c8\ub2e4.");
         table.put("Wait after auto scroll",
                 "\uc790\ub3d9 \uc2a4\ud06c\ub864 \ud6c4 \ub300\uae30");
         table.put("Wait for a tap to find it",
@@ -11585,7 +11595,7 @@ public final class L10nTranslations {
     }
 
     private static Map<String, String> buildPt_rBR() {
-        Map<String, String> table = new HashMap<>(2226);
+        Map<String, String> table = new HashMap<>(2228);
         fillPt_rBR0(table);
         fillPt_rBR1(table);
         fillPt_rBR2(table);
@@ -13512,6 +13522,8 @@ public final class L10nTranslations {
                 "Tire a Meta AI da pesquisa, do seu feed, dos reels e dos perfis.");
         table.put("Take buttons you don't use off posts and the share sheet.",
                 "Tire dos posts e do menu de compartilhamento os bot\u00f5es que voc\u00ea n\u00e3o usa.");
+        table.put("Take one normal Instants photo first",
+                "Primeiro tire uma foto normal de Instants");
         table.put("Takes Create off the tab bar and closes up the gap. Restart Instagram to see the change.",
                 "Tira o Criar da barra de abas e fecha o espa\u00e7o. Reinicie o Instagram para ver a mudan\u00e7a.");
         table.put("Takes Home off the tab bar. Your Start tab opens wherever Home would, so pick one other than Home that's on the bar, or Home stays. Restart Instagram to see the change.",
@@ -13572,11 +13584,11 @@ public final class L10nTranslations {
                 "Tira o mais para novos posts do topo do seu pr\u00f3prio perfil. Os outros bot\u00f5es continuam onde estavam.");
         table.put("Takes the row of notes off the top of your messages, the Map bubble in it too. Your chats, search and requests stay.",
                 "Tira a fileira de notas da parte superior das suas mensagens, incluindo a bolha do Mapa. Suas conversas, a pesquisa e as solicita\u00e7\u00f5es continuam l\u00e1.");
-        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
-                "Tira a linha de emojis r\u00e1pidos acima da caixa de coment\u00e1rios. A caixa continua l\u00e1.");
     }
 
     private static void fillPt_rBR16(Map<String, String> table) {
+        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
+                "Tira a linha de emojis r\u00e1pidos acima da caixa de coment\u00e1rios. A caixa continua l\u00e1.");
         table.put("Takes the row of story highlights off profiles, yours included. Bios, counts and posts stay, and so does Add to highlight on your stories.",
                 "Tira a fileira de destaques dos stories dos perfis, incluindo o seu. Bios, contagens e posts continuam l\u00e1, e Adicionar ao destaque nos seus stories tamb\u00e9m.");
         table.put("Takes the search bar and its Filter button off the top of your messages, the Meta AI bar too. Your chats, notes and requests stay.",
@@ -13695,11 +13707,11 @@ public final class L10nTranslations {
                 "Tempo restante");
         table.put("Time posted",
                 "Hor\u00e1rio da postagem");
-        table.put("To open Messages here, turn on Show the Messages tab and restart.",
-                "Para abrir as Mensagens aqui, ative Mostrar a aba Mensagens e reinicie.");
     }
 
     private static void fillPt_rBR17(Map<String, String> table) {
+        table.put("To open Messages here, turn on Show the Messages tab and restart.",
+                "Para abrir as Mensagens aqui, ative Mostrar a aba Mensagens e reinicie.");
         table.put("To open Search here, turn off Hide the Search tab and restart.",
                 "Para abrir a Pesquisa aqui, desative Ocultar a aba Pesquisar e reinicie.");
         table.put("Too many tries. Wait %1$d seconds.",
@@ -13818,11 +13830,11 @@ public final class L10nTranslations {
                 "Os Instantes que voc\u00ea v\u00ea continuam n\u00e3o vistos at\u00e9 voc\u00ea tocar no bot\u00e3o de olho");
         table.put("Voice message",
                 "Mensagem de voz");
-        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
-                "Aumentar o volume ainda sobe o volume do celular, mas um reel silenciado continua silenciado at\u00e9 voc\u00ea ativar o som.");
     }
 
     private static void fillPt_rBR18(Map<String, String> table) {
+        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
+                "Aumentar o volume ainda sobe o volume do celular, mas um reel silenciado continua silenciado at\u00e9 voc\u00ea ativar o som.");
         table.put("Wait after auto scroll",
                 "Esperar ap\u00f3s a rolagem autom\u00e1tica");
         table.put("Wait for a tap to find it",
@@ -13892,7 +13904,7 @@ public final class L10nTranslations {
     }
 
     private static Map<String, String> buildTr() {
-        Map<String, String> table = new HashMap<>(2226);
+        Map<String, String> table = new HashMap<>(2228);
         fillTr0(table);
         fillTr1(table);
         fillTr2(table);
@@ -15819,6 +15831,8 @@ public final class L10nTranslations {
                 "Meta AI'\u0131 aramadan, ak\u0131\u015f\u0131ndan, reels'ten ve profillerden \u00e7\u0131kar.");
         table.put("Take buttons you don't use off posts and the share sheet.",
                 "Kullanmad\u0131\u011f\u0131n d\u00fc\u011fmeleri g\u00f6nderilerden ve payla\u015f\u0131m sayfas\u0131ndan kald\u0131r.");
+        table.put("Take one normal Instants photo first",
+                "\u00d6nce normal bir Instants foto\u011fraf\u0131 \u00e7ek");
         table.put("Takes Create off the tab bar and closes up the gap. Restart Instagram to see the change.",
                 "Olu\u015ftur'u sekme \u00e7ubu\u011fundan kald\u0131r\u0131r ve bo\u015flu\u011fu kapat\u0131r. De\u011fi\u015fikli\u011fi g\u00f6rmek i\u00e7in Instagram'\u0131 yeniden ba\u015flat.");
         table.put("Takes Home off the tab bar. Your Start tab opens wherever Home would, so pick one other than Home that's on the bar, or Home stays. Restart Instagram to see the change.",
@@ -15879,11 +15893,11 @@ public final class L10nTranslations {
                 "Yeni g\u00f6nderiler i\u00e7in art\u0131 d\u00fc\u011fmesini kendi profilinin \u00fcst\u00fcnden kald\u0131r\u0131r. Di\u011fer d\u00fc\u011fmeler olduklar\u0131 yerde kal\u0131r.");
         table.put("Takes the row of notes off the top of your messages, the Map bubble in it too. Your chats, search and requests stay.",
                 "Mesajlar\u0131n\u0131n \u00fcst k\u0131sm\u0131ndaki notlar sat\u0131r\u0131n\u0131, i\u00e7indeki Harita balonuyla birlikte kald\u0131r\u0131r. Sohbetlerin, arama ve istekler kal\u0131r.");
-        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
-                "Yorum kutusunun \u00fcst\u00fcndeki h\u0131zl\u0131 emoji sat\u0131r\u0131n\u0131 kald\u0131r\u0131r. Kutunun kendisi kal\u0131r.");
     }
 
     private static void fillTr16(Map<String, String> table) {
+        table.put("Takes the row of quick emoji off above the comment box. The box itself stays.",
+                "Yorum kutusunun \u00fcst\u00fcndeki h\u0131zl\u0131 emoji sat\u0131r\u0131n\u0131 kald\u0131r\u0131r. Kutunun kendisi kal\u0131r.");
         table.put("Takes the row of story highlights off profiles, yours included. Bios, counts and posts stay, and so does Add to highlight on your stories.",
                 "Hikaye \u00f6ne \u00e7\u0131kanlar\u0131 sat\u0131r\u0131n\u0131 profillerden, seninki dahil, kald\u0131r\u0131r. Biyografiler, say\u0131lar ve g\u00f6nderiler kal\u0131r, hikayelerindeki \u00d6ne \u00e7\u0131kanlara ekle de kal\u0131r.");
         table.put("Takes the search bar and its Filter button off the top of your messages, the Meta AI bar too. Your chats, notes and requests stay.",
@@ -16002,11 +16016,11 @@ public final class L10nTranslations {
                 "Kalan s\u00fcre");
         table.put("Time posted",
                 "Payla\u015f\u0131lma saati");
-        table.put("To open Messages here, turn on Show the Messages tab and restart.",
-                "Mesajlar'\u0131 burada a\u00e7mak i\u00e7in Mesajlar sekmesini g\u00f6ster'i a\u00e7 ve yeniden ba\u015flat.");
     }
 
     private static void fillTr17(Map<String, String> table) {
+        table.put("To open Messages here, turn on Show the Messages tab and restart.",
+                "Mesajlar'\u0131 burada a\u00e7mak i\u00e7in Mesajlar sekmesini g\u00f6ster'i a\u00e7 ve yeniden ba\u015flat.");
         table.put("To open Search here, turn off Hide the Search tab and restart.",
                 "Ara'y\u0131 burada a\u00e7mak i\u00e7in Ara sekmesini gizle'yi kapat ve yeniden ba\u015flat.");
         table.put("Too many tries. Wait %1$d seconds.",
@@ -16125,11 +16139,11 @@ public final class L10nTranslations {
                 "G\u00f6z d\u00fc\u011fmesine dokunana kadar izledi\u011fin Anl\u0131klar g\u00f6r\u00fclmemi\u015f kal\u0131r");
         table.put("Voice message",
                 "Sesli mesaj");
-        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
-                "Sesi art\u0131rmak telefonun sesini yine y\u00fckseltir, ancak sessize al\u0131nm\u0131\u015f bir reel siz a\u00e7ana kadar sessiz kal\u0131r.");
     }
 
     private static void fillTr18(Map<String, String> table) {
+        table.put("Volume up still raises the phone's volume, but a muted reel stays muted until you unmute it.",
+                "Sesi art\u0131rmak telefonun sesini yine y\u00fckseltir, ancak sessize al\u0131nm\u0131\u015f bir reel siz a\u00e7ana kadar sessiz kal\u0131r.");
         table.put("Wait after auto scroll",
                 "Otomatik kayd\u0131rmadan sonra bekle");
         table.put("Wait for a tap to find it",

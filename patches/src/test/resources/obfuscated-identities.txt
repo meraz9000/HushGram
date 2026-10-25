@@ -24,3 +24,11 @@ patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstant
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A05
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A06
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A0C
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A02
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A03
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A04
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A07
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A08
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A09
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A14
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A16

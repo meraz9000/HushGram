@@ -36,8 +36,10 @@ import com.android.tools.smali.dexlib2.iface.reference.StringReference
 
 private const val PATCH = "Save button on stories and instants"
 internal const val INSTANTS_SAVE = "$EXTENSION_PACKAGE/download/InstantsSave;"
-internal const val ON_VIEW = "$INSTANTS_SAVE->onView(Ljava/lang/Object;)V"
+internal const val ON_INSTANT = "$INSTANTS_SAVE->onInstant(Ljava/lang/Object;)V"
 internal const val ON_STORY = "$INSTANTS_SAVE->onStory(Ljava/lang/Object;)V"
+internal const val WRAP_LONG_PRESS =
+    "$INSTANTS_SAVE->wrapLongPress(Ljava/lang/Object;Ljava/lang/String;)V"
 internal const val COMPOSER_HOOK =
     "$INSTANTS_SAVE->composerCreated(Landroid/view/View;Landroid/view/View;Landroid/view/View;)V"
 internal const val MEDIA_STUB = "$INSTANTS_SAVE->media(Ljava/lang/Object;)Ljava/lang/Object;"
@@ -58,9 +60,10 @@ internal const val REPLY_BAR_ID = 0x7f0b2161
 @Suppress("unused")
 val saveInstantsPatch = bytecodePatch(
     name = "Save button on stories and instants",
-    description = "Puts a Save button in the reply bar under the story or instant you're watching. A tap saves " +
-        "that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. " +
-        "Starts off. Turn it on in HushGram settings > Messages.",
+    description = "Holding an instant saves it, marks it seen, and moves to the next instant; stories keep " +
+        "a Save button in the reply bar. " +
+        "A save puts that one photo or video in your gallery, the way Download saves a reel. Nothing saves " +
+        "unless you hold or tap. Starts off. Turn it on in HushGram settings > Messages.",
     default = false,
 ) {
     category("Messages")
@@ -71,7 +74,8 @@ val saveInstantsPatch = bytecodePatch(
         requireStatusMethod("saveInstantsButton")
         hookStoryBind()
         val model = findInstantModel()
-        findInstantRenders(model).forEach { render -> hookInstantRender(render) }
+        findInstantRenders(model).forEach { render -> hookInstantRender(render, ON_INSTANT) }
+        hookLongPress()
         placeSaveButton(findMessageBox())
         fillMediaStub(model, findModelMediaField(model))
         fillStoryMediaStub()
@@ -143,10 +147,10 @@ internal fun BytecodePatchContext.findInstantRenders(model: String): List<Method
 
 /**
  * Calls the extension with the item as the render starts, so the instant on screen is always the
- * one the Save button would save. The item is the render's third parameter; nothing before it
- * takes more than one register.
+ * one the feature would act on. The item is the render's third parameter; nothing before it takes
+ * more than one register.
  */
-internal fun BytecodePatchContext.hookInstantRender(render: Method, hook: String = ON_VIEW) {
+internal fun BytecodePatchContext.hookInstantRender(render: Method, hook: String = ON_INSTANT) {
     val mutable = mutableClassDefBy(render.definingClass).methods.single {
         it.name == render.name && it.parameterTypes == render.parameterTypes
     }
@@ -156,6 +160,70 @@ internal fun BytecodePatchContext.hookInstantRender(render: Method, hook: String
     val item = base + 2
     val call = if (item <= 15) "invoke-static { v$item }, $hook" else "invoke-static/range { v$item .. v$item }, $hook"
     mutable.addInstructions(0, call)
+}
+
+/** The Compose pointer handler's synthetic long-press class, whose suffix Compose renumbers. */
+internal const val LONG_PRESS_PREFIX =
+    "Lcom/instagram/quicksnap/viewer/compose/PointerTouchKt\$handleTapAndLongPressWithRelease$"
+
+/**
+ * Wraps the viewer's long-press callback so a held instant saves. Compose keeps the handler's
+ * class name literally, and its constructor takes `(Continuation, Function0, Function1,
+ * Function1, float, long)`: the second Function1 is the long-press callback. The field it lands in
+ * is read from the constructor's own write, so this build's letter is never assumed. The call goes
+ * before the constructor returns, after every field is set.
+ */
+internal fun BytecodePatchContext.hookLongPress() {
+    val function1 = "Lkotlin/jvm/functions/Function1;"
+    val found = mutableListOf<Triple<ClassDef, Method, FieldReference>>()
+    classDefForEach { classDef ->
+        if (!classDef.type.startsWith(LONG_PRESS_PREFIX)) return@classDefForEach
+        for (method in classDef.methods) {
+            if (method.name != "<init>" || method.parameterTypes.size != 6) continue
+            val types = method.parameterTypes.map(Any::toString)
+            if (types[1] != "Lkotlin/jvm/functions/Function0;" ||
+                types[2] != function1 || types[3] != function1 ||
+                types[4] != "F" || types[5] != "J") {
+                continue
+            }
+            val mutable = mutableClassDefBy(classDef.type).methods.single {
+                it.name == method.name && it.parameterTypes == method.parameterTypes
+            }
+            val parameterRegisters = 1 + method.parameterTypes.sumOf {
+                if (it.toString() == "J" || it.toString() == "D") 2 else 1
+            }
+            val first = mutable.implementation!!.registerCount - parameterRegisters
+            val longPress = mutable.implementation!!.instructions.toList().firstOrNull { instruction ->
+                instruction.opcode == Opcode.IPUT_OBJECT &&
+                    (instruction as? TwoRegisterInstruction)?.registerA == first + 4 &&
+                    ((instruction as? ReferenceInstruction)?.reference as? FieldReference)
+                        ?.type?.toString() == function1
+            } ?: continue
+            found += Triple(classDef, method, (longPress as ReferenceInstruction).reference as FieldReference)
+        }
+    }
+    val (host, method, field) = found.singleOrNull()
+        ?: throw PatchException("$PATCH: expected one long-press handler, found ${found.size}")
+    val mutable = mutableClassDefBy(host.type).methods.single {
+        it.name == method.name && it.parameterTypes == method.parameterTypes
+    }
+    val parameterRegisters = 1 + method.parameterTypes.sumOf {
+        if (it.toString() == "J" || it.toString() == "D") 2 else 1
+    }
+    val first = mutable.implementation!!.registerCount - parameterRegisters
+    if (first > 15) {
+        throw PatchException("$PATCH: ${host.type} long-press constructor starts at v$first")
+    }
+    val last = mutable.implementation!!.instructions.toList()
+        .indexOfLast { it.opcode == Opcode.RETURN_VOID }
+    if (last < 0) throw PatchException("$PATCH: ${host.type} long-press constructor never returns")
+    mutable.addInstructions(
+        last,
+        """
+            const-string v0, "${field.name}"
+            invoke-static {p0, v0}, $WRAP_LONG_PRESS
+        """,
+    )
 }
 
 /**

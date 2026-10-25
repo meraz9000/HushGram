@@ -8,9 +8,9 @@ Every HushGram release, newest first.
 
 * **Instagram - Keep instants unseen:** new patch, kept out of simple mode. Viewed instants stay unseen until you tap the eye button, which marks that one as seen; tapping to advance still moves to the next instant. Starts off. Turn it on in HushGram settings > Messages.
 
-* **Instagram - Add photos from the gallery to instants:** new patch, kept out of simple mode. A gallery button on the Instants camera opens the system photo picker. After one normal Instants photo, the picked picture runs through the camera's own capture callback, so the instant preview opens ready to send. Starts off. Turn it on in HushGram settings > Messages.
+* **Instagram - Add photos from the gallery to instants:** new patch, kept out of simple mode. A gallery button on the Instants camera opens the system photo picker. After one normal Instants photo, the picked picture opens in a square framing view; frame it, tap Save, and it runs through the camera's own capture callback, so the instant preview opens ready to send. Starts off. Turn it on in HushGram settings > Messages.
 
-* **Instagram - Save button on stories and instants:** new patch, kept out of simple mode. A switch under Messages puts a Save button in the reply bar under the story or instant you're watching, and a tap saves that one photo or video to your gallery, the way Download saves a reel. Nothing saves unless you tap. Asked for in testing the Instants feed.
+* **Instagram - Save button on stories and instants:** new patch, kept out of simple mode. A switch under Messages saves the instant you hold, marks it seen, and moves to the next instant, while stories keep a Save button in the reply bar. A save puts that one photo or video in your gallery, the way Download saves a reel. Nothing saves unless you hold or tap. Asked for in testing the Instants feed.
 
 * **Instagram - Download any video:** Details has a Copy caption without hashtags row for captions that have them. It drops a closing block of tags and the dots above it, and a tag inside a sentence keeps its word. Reported in #282.
 * **Instagram - Swipe left to open the profile:** new patch, in simple mode with its switch off. Turn it on under Reels and a left swipe on a reel in the Reels tab slides in the creator's profile, like Instagram used to. A right swipe on a reel still goes to Home, and on the profile it opened, a right swipe or Back takes you to the reel. Turning it on or off takes a restart. Asked for in #245 and #283.
@@ -18,6 +18,7 @@ Every HushGram release, newest first.
 
 ### Bug Fixes
 
+* **Instagram - Keep instants unseen:** Deleting an archived instant no longer says Deleted and leaves it in place. The patch had mistaken Instagram's soft-delete request for a seen request and held it back.
 * **Instagram - Change the like animation:** The animation you picked plays on Instagram 452's feed and Reels hearts again, for a double tap and for the heart button. Before, 452 showed its usual heart there. Reported in #299.
 * **Instagram - View stories anonymously:** With `Gray out stories you've watched` on, stories you've watched now move behind the new ones in the story row at the top of Home too. Before, only the stories inside the feed were reordered. (#241)
 * **Instagram - Read messages without the seen receipt:** With `Keep chats unread here` off, a chat you opened could still flip back to unread after a refresh. Now it stays read until a new message comes in. (#186)

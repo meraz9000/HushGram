@@ -74,7 +74,8 @@ internal const val GALLERY_PATCH = "Add photos from the gallery to instants"
 val galleryInstantsPatch = bytecodePatch(
     name = "Add photos from the gallery to instants",
     description = "Puts a gallery button on the Instants camera. After one normal Instants photo, pick a " +
-        "picture from your phone and Instagram opens the instant preview with it, ready to send, the same " +
+        "picture from your phone, frame it in the square Instants viewfinder, and " +
+        "Instagram opens the instant preview with it, ready to send, the same " +
         "pipeline a shutter press uses. Starts off. Turn it on in HushGram settings > Messages.",
     default = false,
 ) {

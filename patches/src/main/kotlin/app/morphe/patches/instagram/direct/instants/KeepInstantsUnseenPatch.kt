@@ -39,8 +39,6 @@ internal const val BEFORE_SEEN_WRITE =
     "$INSTANTS_SEEN->beforeSeenWrite(Ljava/lang/Object;Ljava/lang/Object;)Z"
 internal const val FILTER_SEEN_IDS =
     "$INSTANTS_SEEN->filterSeenIds(Ljava/util/List;)Ljava/util/List;"
-internal const val BEFORE_SEEN_REQUEST_ID =
-    "$INSTANTS_SEEN->beforeSeenRequestId(Ljava/lang/String;)Z"
 internal const val BEFORE_FETCHER_SEEN =
     "$INSTANTS_SEEN->beforeFetcherSeen(Ljava/lang/Object;Ljava/util/List;)Z"
 internal const val VIEWER_CLOSE =
@@ -89,7 +87,6 @@ val keepInstantsUnseenPatch = bytecodePatch(
         hookSeenManagerMaintenance(manager)
         hookSeenRequest()
         hookFetcherSeen()
-        hookSingleSeenRequest()
         hookViewerClose()
         hookFetcherFetch()
         enableStatus("keepInstants")
@@ -466,37 +463,6 @@ internal fun BytecodePatchContext.fillFetcherStateStub(fetcher: ClassDef) {
             move-result-object v0
             return-object v0
         """,
-    )
-}
-
-/**
- * Answers the single-id seen request false without sending it. The repository's consume method
- * removes the instant from its list only when this request answers true; false leaves it.
- * The eye button forces the real request through.
- */
-internal fun BytecodePatchContext.hookSingleSeenRequest() {
-    val api = classDefByOrNull(SEEN_API) ?: throw PatchException("$PATCH: $SEEN_API is gone")
-    val method = api.methods.singleOrNull {
-        it.name == "A06" && it.parameterTypes.size == 2 &&
-            it.parameterTypes[0].toString() == "Ljava/lang/String;" &&
-            it.returnType == "Ljava/lang/Object;"
-    } ?: throw PatchException("$PATCH: $SEEN_API has no single seen request")
-    val mutable = mutableClassDefBy(api.type).methods.single {
-        it.name == method.name && it.parameterTypes == method.parameterTypes &&
-            it.returnType == method.returnType
-    }
-    val first = mutable.implementation!!.instructions.first()
-    mutable.addInstructionsWithLabels(
-        0,
-        """
-            move-object/from16 v0, p1
-            invoke-static {v0}, $BEFORE_SEEN_REQUEST_ID
-            move-result v0
-            if-eqz v0, :run
-            sget-object v0, Ljava/lang/Boolean;->FALSE:Ljava/lang/Boolean;
-            return-object v0
-        """,
-        ExternalLabel("run", first),
     )
 }
 

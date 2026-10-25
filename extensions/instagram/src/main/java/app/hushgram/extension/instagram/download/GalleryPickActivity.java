@@ -8,9 +8,15 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
@@ -26,9 +32,10 @@ import app.hushgram.extension.shared.Utils;
  * <p>A transparent, exportless activity the patch adds to the manifest. It asks Android for a
  * picture — the system photo picker on 13 and newer, the document picker before it, neither of
  * which needs a permission — reads the picked picture into a Bitmap the size the camera hands
- * its own captures at, and gives it to {@link InstantsGallery#capture}, the bridge the patch
- * fills with the camera's own handoff. The screen closes either way; a pick that can't be read
- * says so and changes nothing.
+ * its own captures at, shows it in a {@link CropView} so the person can frame it, and gives the
+ * framed bitmap to {@link InstantsGallery#capture}, the bridge the patch fills with the camera's
+ * own handoff. Cancel closes without sending; a pick that can't be read says so and changes
+ * nothing.
  */
 public final class GalleryPickActivity extends Activity {
     private static final String SOURCE = "GalleryPickActivity";
@@ -74,20 +81,95 @@ public final class GalleryPickActivity extends Activity {
                 SOURCE, () -> "decoded: " + (bitmap == null ? "null" : bitmap.getWidth() + "x" + bitmap.getHeight()));
             if (bitmap == null) {
                 if (result == RESULT_OK) failed();
+                finish();
                 return;
             }
-            boolean taken = InstantsGallery.capture(this, bitmap);
-            Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
-                SOURCE, () -> "handoff " + (taken ? "went in" : "refused"));
-            if (!taken) {
-                failed();
+            if (!InstantsGallery.hasCapture()) {
+                Utils.showToastLong(L10n.t("Take one normal Instants photo first"));
+                finish();
+                return;
             }
+            showFraming(bitmap);
         } catch (Throwable t) {
             Logger.printException(() -> "Could not read the picked picture", t);
             failed();
-        } finally {
             finish();
         }
+    }
+
+    /** Shows the picked picture in the framing view, with Cancel and Save over it. */
+    private void showFraming(Bitmap bitmap) {
+        CropView crop = new CropView(this);
+        crop.setPicture(bitmap);
+
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.BLACK);
+        root.addView(crop, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(dp(12), dp(12), dp(12), dp(48));
+        bar.setBackgroundColor(0xF2000000);
+        TextView cancel = button(L10n.t("Cancel"));
+        cancel.setOnClickListener(v -> finish());
+        TextView save = button(L10n.t("Save"));
+        save.setOnClickListener(v -> {
+            Bitmap framed = crop.crop();
+            if (framed == null) {
+                failed();
+                finish();
+                return;
+            }
+            boolean taken = InstantsGallery.capture(this, framed);
+            Logger.diagnosticInfo(
+                app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                SOURCE, () -> "framed handoff " + (taken ? "went in" : "refused"));
+            if (!taken) {
+                failed();
+            }
+            finish();
+        });
+        LinearLayout.LayoutParams half = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        half.setMargins(dp(6), 0, dp(6), 0);
+        bar.addView(cancel, half);
+        LinearLayout.LayoutParams other = new LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        other.setMargins(dp(6), 0, dp(6), 0);
+        bar.addView(save, other);
+        root.addView(bar, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM));
+
+        getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
+        getWindow().setStatusBarColor(Color.BLACK);
+        getWindow().setNavigationBarColor(Color.BLACK);
+        setContentView(root);
+    }
+
+    /** A plain white button for the framing bar. */
+    private TextView button(String label) {
+        TextView text = new TextView(this);
+        text.setText(label);
+        text.setTextColor(Color.WHITE);
+        text.setTextSize(16);
+        text.setGravity(Gravity.CENTER);
+        text.setPadding(dp(12), dp(14), dp(12), dp(14));
+        text.setClickable(true);
+        text.setFocusable(true);
+        android.graphics.drawable.GradientDrawable background =
+            new android.graphics.drawable.GradientDrawable();
+        background.setColor(0x33FFFFFF);
+        background.setCornerRadius(dp(22));
+        text.setBackground(background);
+        return text;
+    }
+
+    /** [value] device-independent pixels in this activity's scale. */
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     /** The picked picture, decoded no larger than [MAX_SIDE] on its longest side. */

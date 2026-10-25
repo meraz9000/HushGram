@@ -26,7 +26,8 @@ import app.hushgram.extension.shared.diagnostics.DiagnosticCategory;
 import app.hushgram.extension.shared.diagnostics.HookStatus;
 
 /**
- * Helper for the "Save button on instants" patch.
+ * Helper for the "Save button on stories and instants" patch: stories keep a button, while an
+ * instant is saved by holding it.
  *
  * <p>An instant (a friend's quick photo or video in the Instants feed) is rendered by a function
  * that receives the item model. The patch calls {@link #onView} with that model each time it
@@ -80,6 +81,8 @@ public final class InstantsSave {
     private static volatile Object current;
     /** When the current media was bound, for placement windows. */
     private static volatile long boundAt;
+    /** When a long-press last asked to save, so press and release make one save. */
+    private static volatile long lastSaveAt;
     /** The reply bar row the viewer's composer offered, or null. */
     @Nullable
     private static volatile ViewGroup row;
@@ -99,10 +102,29 @@ public final class InstantsSave {
 
     /**
      * Called with the item model of each instant as Instagram renders it. Makes it the instant on
-     * screen and places the Save button in the captured reply bar, if there is one. Never throws.
+     * screen and takes the Save button away: an instant is saved by holding it, like InstaEclipse,
+     * while stories keep their button. Never throws.
      */
-    public static void onView(Object item) {
-        onViewBound(item == null ? null : media(item));
+    public static void onInstant(Object item) {
+        onInstantBound(item == null ? null : media(item));
+    }
+
+    /** What {@link #onInstant} does once the item's Media is in, tests included. */
+    static void onInstantBound(@Nullable Object media) {
+        try {
+            if (!on()) {
+                logOff();
+                return;
+            }
+            HookStatus.invoked(FamilyNames.SAVE_INSTANTS_BUTTON);
+            if (media == null) {
+                return;
+            }
+            bind(media);
+            removeButton();
+        } catch (Throwable t) {
+            HookStatus.threw(FamilyNames.SAVE_INSTANTS_BUTTON, SWITCH, t);
+        }
     }
 
     /**
@@ -117,31 +139,42 @@ public final class InstantsSave {
         onViewBound(media);
     }
 
-    /** What {@link #onView} does once the item's Media is in, tests included. Never throws. */
+    /** What the story viewer does once the item's Media is in: bind and place its button. */
     static void onViewBound(@Nullable Object media) {
         try {
             if (!on()) {
-                if (!loggedOff) {
-                    loggedOff = true;
-                    Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
-                        "off: settingsReady " + Utils.settingsReady() + ", switch " +
-                            (Utils.settingsReady() ? Settings.SAVE_INSTANTS_BUTTON.get() : null));
-                }
+                logOff();
                 return;
             }
             HookStatus.invoked(FamilyNames.SAVE_INSTANTS_BUTTON);
             if (media == null) {
                 return;
             }
-            synchronized (LOCK) {
-                current = media;
-                boundAt = SystemClock.elapsedRealtime();
-            }
-            HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, BOUND);
+            bind(media);
             place();
         } catch (Throwable t) {
             HookStatus.threw(FamilyNames.SAVE_INSTANTS_BUTTON, SWITCH, t);
         }
+    }
+
+    /** Makes [media] the instant or story on screen. */
+    private static void bind(Object media) {
+        synchronized (LOCK) {
+            current = media;
+            boundAt = SystemClock.elapsedRealtime();
+        }
+        HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, BOUND);
+    }
+
+    /** Says once why nothing is placed or saved. */
+    private static void logOff() {
+        if (loggedOff) {
+            return;
+        }
+        loggedOff = true;
+        Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
+            "off: settingsReady " + Utils.settingsReady() + ", switch " +
+                (Utils.settingsReady() ? Settings.SAVE_INSTANTS_BUTTON.get() : null));
     }
 
     /**
@@ -291,30 +324,145 @@ public final class InstantsSave {
         }
     }
 
-    /** The tap on the Save button: saves the instant on screen, and says so when it can't. */
+    /** The tap on the story Save button: saves the story on screen. */
     private static void tap(View button) {
+        saveCurrent(activity(button), button.getContext());
+    }
+
+    /**
+     * Wraps the Compose viewer's long-press callback so a held instant saves first and Instagram's
+     * own long-press action still runs. The patch passes the field it found on that build, so the
+     * field letter is not written down here.
+     */
+    public static void wrapLongPress(@Nullable Object handler, @Nullable String fieldName) {
         try {
+            if (handler == null || fieldName == null) {
+                return;
+            }
+            java.lang.reflect.Field field = field(handler.getClass(), fieldName);
+            if (field == null) {
+                return;
+            }
+            Object original = field.get(handler);
+            if (original == null || java.lang.reflect.Proxy.isProxyClass(original.getClass())) {
+                return;
+            }
+            Class<?> function = Class.forName("kotlin.jvm.functions.Function1");
+            if (!function.isInstance(original)) {
+                return;
+            }
+            Object wrapper = java.lang.reflect.Proxy.newProxyInstance(
+                function.getClassLoader(),
+                new Class<?>[] {function},
+                (proxy, method, arguments) -> {
+                    if ("invoke".equals(method.getName())) {
+                        boolean saved = saveCurrent(Utils.getActivity(), null);
+                        if (saved && InstantsSeen.seenAndAdvance()) {
+                            // The save marked this instant seen and moved past it. Instagram's
+                            // menu would belong to the card that just left, so it doesn't run.
+                            return null;
+                        }
+                    }
+                    try {
+                        return method.invoke(original, arguments);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+            field.set(handler, wrapper);
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
+                "long-press wrapped on " + fieldName);
+        } catch (Throwable t) {
+            HookStatus.threw(FamilyNames.SAVE_INSTANTS_BUTTON, "long-press", t);
+        }
+    }
+
+    /** Saves the instant on screen once, for a long-press or the story button. */
+    static boolean saveCurrent(
+        @Nullable Activity activity, @Nullable android.content.Context feedback
+    ) {
+        try {
+            if (!on()) {
+                logOff();
+                return false;
+            }
+            long now = SystemClock.elapsedRealtime();
+            synchronized (LOCK) {
+                if (lastSaveAt != 0 && now - lastSaveAt < 1_000) {
+                    return false;
+                }
+                lastSaveAt = now;
+            }
             Object media;
             synchronized (LOCK) {
                 media = current;
             }
-            Activity activity = activity(button);
             if (media == null || activity == null) {
                 HookStatus.counted(FamilyNames.SAVE_INSTANTS_BUTTON, NOTHING);
-                Feedback.show(activity, L10n.t(activity, "Download failed"), true);
-                return;
+                if (activity != null) {
+                    Feedback.show(activity, L10n.t(activity, "Download failed"), true);
+                }
+                return false;
             }
             if (!ReelDownload.saveInstantsMedia(media, activity)) {
                 Feedback.show(activity, L10n.t(activity, "Download failed"), true);
+                return false;
             }
+            return true;
         } catch (Throwable t) {
             HookStatus.threw(FamilyNames.SAVE_INSTANTS_BUTTON, SAVE, t);
             try {
-                Feedback.show(button.getContext(), L10n.t(button.getContext(), "Download failed"), true);
+                android.content.Context context = feedback != null ? feedback : activity;
+                if (context != null) {
+                    Feedback.show(context, L10n.t(context, "Download failed"), true);
+                }
             } catch (Throwable ignored) {
                 // The save already reported its own failure.
             }
+            return false;
         }
+    }
+
+    /** Takes any Save button off the surface an instant is about to use. */
+    private static void removeButton() {
+        try {
+            ViewGroup captured = row;
+            if (captured != null) {
+                View old = captured.findViewWithTag(TAG);
+                if (old != null) {
+                    captured.removeView(old);
+                }
+            }
+            Activity activity = Utils.getActivity();
+            if (activity != null) {
+                View bar = bar(activity);
+                if (bar instanceof ViewGroup) {
+                    View old = bar.findViewWithTag(TAG);
+                    if (old != null) {
+                        ((ViewGroup) bar).removeView(old);
+                    }
+                }
+            }
+            hideOverlay();
+        } catch (Throwable t) {
+            HookStatus.threw(FamilyNames.SAVE_INSTANTS_BUTTON, PLACE, t);
+        }
+    }
+
+    /** The field [name] of [type], including inherited fields, or null. */
+    @Nullable
+    private static java.lang.reflect.Field field(Class<?> type, String name) {
+        for (Class<?> current = type; current != null && current != Object.class;
+             current = current.getSuperclass()) {
+            try {
+                java.lang.reflect.Field field = current.getDeclaredField(name);
+                field.setAccessible(true);
+                return field;
+            } catch (Throwable ignored) {
+                // Try the superclass.
+            }
+        }
+        return null;
     }
 
     /** The activity showing [view], or null. */

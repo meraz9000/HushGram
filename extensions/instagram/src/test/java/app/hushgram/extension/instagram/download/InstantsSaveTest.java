@@ -83,6 +83,21 @@ public class InstantsSaveTest {
     }
 
     @Test
+    public void anInstantTakesTheStoryButtonAway() {
+        Settings.SAVE_INSTANTS_BUTTON.save(true);
+        HookStatus.clear();
+        LinearLayout bar = row();
+        InstantsSave.composerCreated(bar.getChildAt(0), null, bar.getChildAt(1));
+        InstantsSave.onViewBound(MEDIA);
+        assertNotNull("the story render placed no Save button", bar.findViewWithTag(TAG));
+
+        // An instant on the same surface keeps no button; holding it saves instead.
+        InstantsSave.onInstantBound(MEDIA);
+        assertNull("the instant kept the story's Save button", bar.findViewWithTag(TAG));
+        assertEquals(2, bar.getChildCount());
+    }
+
+    @Test
     public void aComposerAloneNeverPlacesTheButton() {
         Settings.SAVE_INSTANTS_BUTTON.save(true);
         HookStatus.clear();

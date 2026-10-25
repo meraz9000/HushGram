@@ -79,6 +79,9 @@ public final class InstantsGallery {
         }
         try {
             if (!(Utils.settingsReady() && Settings.GALLERY_INSTANTS.get())) {
+                Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
+                    "glyph off: settingsReady " + Utils.settingsReady() + ", switch "
+                        + (Utils.settingsReady() ? Settings.GALLERY_INSTANTS.get() : null));
                 return;
             }
             MAIN.post(InstantsGallery::showGlyph);
@@ -206,6 +209,12 @@ public final class InstantsGallery {
         } catch (Throwable t) {
             Logger.printException(() -> "Could not keep the capture callback's arguments", t);
         }
+    }
+
+    /** Whether a normal Instants capture has been recorded, so a gallery picture can replay it. */
+    public static boolean hasCapture() {
+        Object[] callback = lastInvoke;
+        return callback != null && callback.length == 9 && callback[0] != null;
     }
 
     /** Runs the kept callback with [bitmap], answering whether it was taken. */
