@@ -27,34 +27,39 @@ import app.hushgram.extension.shared.Logger;
 import app.hushgram.extension.shared.Utils;
 
 /**
- * The photo picker the gallery glyph on the Instants camera opens.
+ * The media picker the gallery glyph on the Instants camera opens.
  *
  * <p>A transparent, exportless activity the patch adds to the manifest. It asks Android for a
- * picture — the system photo picker on 13 and newer, the document picker before it, neither of
- * which needs a permission — reads the picked picture into a Bitmap the size the camera hands
- * its own captures at, shows it in a {@link CropView} so the person can frame it, and gives the
- * framed bitmap to {@link InstantsGallery#capture}, the bridge the patch fills with the camera's
- * own handoff. Cancel closes without sending; a pick that can't be read says so and changes
- * nothing.
+ * picture or video — the system photo picker on 13 and newer, the document picker before it,
+ * neither of which needs a permission. A picture is read into a Bitmap the size the camera
+ * hands its own captures at, shown in a {@link CropView} so the person can frame it, and given
+ * to {@link InstantsGallery#capture}. A video is copied and given to
+ * {@link InstantsGallery#captureVideo}, which runs the camera's own recorded-video callback.
+ * Cancel closes without sending; a pick that can't be read says so and changes nothing.
  */
 public final class GalleryPickActivity extends Activity {
+    /** True when the glyph asked for a video instead of a picture. */
+    public static final String EXTRA_VIDEO = "hushgram_video";
     private static final String SOURCE = "GalleryPickActivity";
     /** The longest side a picked picture is decoded at, the camera's own stills' ceiling. */
     private static final int MAX_SIDE = 1440;
     private static final int REQUEST = 0x4853; // "HS"
+    private boolean video;
 
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
         try {
+            video = getIntent().getBooleanExtra(EXTRA_VIDEO, false);
+            String type = video ? "video/*" : "image/*";
             Intent pick;
             if (Build.VERSION.SDK_INT >= 33) {
                 pick = new Intent(android.provider.MediaStore.ACTION_PICK_IMAGES);
-                pick.setType("image/*");
+                pick.setType(type);
             } else {
                 pick = new Intent(Intent.ACTION_GET_CONTENT);
                 pick.addCategory(Intent.CATEGORY_OPENABLE);
-                pick.setType("image/*");
+                pick.setType(type);
             }
             Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
                 SOURCE, () -> "picker launched: " + pick.getAction() + " on sdk " + Build.VERSION.SDK_INT);
@@ -76,6 +81,34 @@ public final class GalleryPickActivity extends Activity {
         }
         try {
             Uri picked = result == RESULT_OK && data != null ? data.getData() : null;
+            String mime = picked == null ? null : getContentResolver().getType(picked);
+            Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                SOURCE, () -> "picked: " + picked + " type " + mime);
+            if (video && picked != null && (mime == null || !mime.startsWith("video/"))) {
+                failedVideo();
+                finish();
+                return;
+            }
+            if (picked != null && mime != null && mime.startsWith("video/")) {
+                if (!InstantsGallery.hasVideoCapture()) {
+                    Utils.showToastLong(L10n.t("Take one normal Instants video first"));
+                    finish();
+                    return;
+                }
+                boolean taken = InstantsGallery.captureVideo(this, picked);
+                Logger.diagnosticInfo(
+                    app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                    SOURCE, () -> "video handoff " + (taken ? "went in" : "refused"));
+                if (!taken) {
+                    failedVideo();
+                }
+                finish();
+                return;
+            }
+            if (video) {
+                finish();
+                return;
+            }
             Bitmap bitmap = picked == null ? null : decode(picked);
             Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
                 SOURCE, () -> "decoded: " + (bitmap == null ? "null" : bitmap.getWidth() + "x" + bitmap.getHeight()));
@@ -91,7 +124,7 @@ public final class GalleryPickActivity extends Activity {
             }
             showFraming(bitmap);
         } catch (Throwable t) {
-            Logger.printException(() -> "Could not read the picked picture", t);
+            Logger.printException(() -> "Could not read the picked media", t);
             failed();
             finish();
         }
@@ -207,6 +240,15 @@ public final class GalleryPickActivity extends Activity {
     private void failed() {
         try {
             Utils.showToastShort(L10n.t("That photo couldn't be read"));
+        } catch (Throwable ignored) {
+            // A toast that can't show changes nothing.
+        }
+    }
+
+    /** Says a picked video couldn't be handed to the camera. */
+    private void failedVideo() {
+        try {
+            Utils.showToastShort(L10n.t("That video couldn't be read"));
         } catch (Throwable ignored) {
             // A toast that can't show changes nothing.
         }

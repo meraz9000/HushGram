@@ -13,16 +13,22 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 
 import androidx.annotation.Nullable;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 
 import app.hushgram.extension.instagram.settings.FamilyNames;
@@ -53,6 +59,10 @@ public final class InstantsGallery {
     private static volatile boolean synthetic;
     /** The last real capture callback's instance and arguments, or null. */
     private static volatile Object[] lastInvoke;
+    /** The last real recorded-video callback's instance and file, or null. */
+    private static volatile Object[] lastVideoInvoke;
+    /** True while the extension itself is replaying the video callback. */
+    private static volatile boolean syntheticVideo;
 
     /** The floating glyph and its hide timer. */
     private static volatile PopupWindow glyph;
@@ -107,22 +117,29 @@ public final class InstantsGallery {
             MAIN.postDelayed(HIDE, GLYPH_LIFE_MS);
             return;
         }
-        ImageView icon = new ImageView(activity);
-        icon.setImageDrawable(new Glyph(activity));
-        icon.setOnClickListener(v -> {
-            try {
-                open(v.getContext());
-                HookStatus.counted(FamilyNames.GALLERY_INSTANTS, "gallery opened");
-            } catch (Throwable t) {
-                HookStatus.threw(FamilyNames.GALLERY_INSTANTS, "gallery", t);
-            }
-        });
         int size = Math.round(44 * activity.getResources().getDisplayMetrics().density);
-        PopupWindow popup = new PopupWindow(icon, size, size);
+        int gap = Math.round(8 * activity.getResources().getDisplayMetrics().density);
+
+        ImageView photo = new ImageView(activity);
+        photo.setImageDrawable(new Glyph(activity));
+        photo.setOnClickListener(v -> openGallery(v.getContext(), false));
+
+        ImageView video = new ImageView(activity);
+        video.setImageDrawable(new VideoGlyph(activity));
+        video.setOnClickListener(v -> openGallery(v.getContext(), true));
+
+        LinearLayout row = new LinearLayout(activity);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(photo, new LinearLayout.LayoutParams(size, size));
+        LinearLayout.LayoutParams videoParams = new LinearLayout.LayoutParams(size, size);
+        videoParams.setMargins(gap, 0, 0, 0);
+        row.addView(video, videoParams);
+
+        PopupWindow popup = new PopupWindow(row, size * 2 + gap, size);
         popup.setBackgroundDrawable(null);
         popup.setFocusable(false);
         popup.setOutsideTouchable(false);
-        int x = Math.round(decor.getWidth() * 0.40f);
+        int x = Math.round(decor.getWidth() * 0.11f);
         int y = Math.round(decor.getHeight() * 0.042f);
         popup.showAtLocation(decor, Gravity.TOP | Gravity.START, x, y);
         glyph = popup;
@@ -130,7 +147,17 @@ public final class InstantsGallery {
         MAIN.postDelayed(HIDE, GLYPH_LIFE_MS);
         HookStatus.counted(FamilyNames.GALLERY_INSTANTS, "glyph shown");
         Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
-            "gallery glyph at " + x + "," + y + " in " + decor.getWidth() + "x" + decor.getHeight());
+            "gallery glyphs at " + x + "," + y + " in " + decor.getWidth() + "x" + decor.getHeight());
+    }
+
+    /** Opens the photo or video picker, counting the tap for diagnostics. */
+    private static void openGallery(Context context, boolean video) {
+        try {
+            open(context, video);
+            HookStatus.counted(FamilyNames.GALLERY_INSTANTS, video ? "video opened" : "gallery opened");
+        } catch (Throwable t) {
+            HookStatus.threw(FamilyNames.GALLERY_INSTANTS, "gallery", t);
+        }
     }
 
     private static void hideGlyph() {
@@ -147,9 +174,15 @@ public final class InstantsGallery {
 
     /** Opens the system photo picker over the app, if the app has one. */
     public static void open(Context context) {
+        open(context, false);
+    }
+
+    /** Opens the picker for photos or videos. */
+    private static void open(Context context, boolean video) {
         try {
             Intent intent = new Intent(context, GalleryPickActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtra(GalleryPickActivity.EXTRA_VIDEO, video);
             context.startActivity(intent);
         } catch (Throwable t) {
             Logger.printException(() -> "Could not start the gallery picker", t);
@@ -215,6 +248,123 @@ public final class InstantsGallery {
     public static boolean hasCapture() {
         Object[] callback = lastInvoke;
         return callback != null && callback.length == 9 && callback[0] != null;
+    }
+
+    /**
+     * Called at the camera's recorded-video callback entry with the callback and the finished
+     * file. The callback captures the live camera context, viewmodel, and recording controllers;
+     * replaying it with a picked file runs Instagram's own compose and upload pipeline.
+     */
+    public static void videoInvoke(Object callback, @Nullable Object file) {
+        try {
+            if (syntheticVideo || callback == null || !(file instanceof File)) {
+                return;
+            }
+            Object context = field(callback, "A01");
+            Object viewModel = field(callback, "A00");
+            if (!(context instanceof Context) || viewModel == null ||
+                !"com.instagram.quicksnap.camera.domain.QuickSnapCameraViewModel"
+                    .equals(viewModel.getClass().getName())) {
+                return;
+            }
+            lastVideoInvoke = new Object[] {callback, file};
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "kept the recorded-video callback for a gallery video");
+        } catch (Throwable t) {
+            Logger.printException(() -> "Could not keep the video callback", t);
+        }
+    }
+
+    /** Whether a normal Instants video has been recorded, so a gallery video can replay it. */
+    public static boolean hasVideoCapture() {
+        Object[] callback = lastVideoInvoke;
+        return callback != null && callback.length == 2 && callback[0] != null;
+    }
+
+    /**
+     * Copies [picked] into the app cache and runs the kept video callback with it. The callback
+     * composes and uploads the file through Instagram's own path, exactly as a recorded video.
+     */
+    public static boolean captureVideo(Context context, @Nullable Uri picked) {
+        Object[] callback = lastVideoInvoke;
+        if (context == null || picked == null || callback == null
+            || callback.length != 2 || callback[0] == null) {
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "no camera video recorded yet; record one normal Instants video first");
+            return false;
+        }
+        File temp = null;
+        boolean started = false;
+        try {
+            temp = File.createTempFile("hushgram-instant-", ".mp4", context.getCacheDir());
+            try (InputStream input = context.getContentResolver().openInputStream(picked);
+                 OutputStream output = new FileOutputStream(temp)) {
+                if (input == null) {
+                    return false;
+                }
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                }
+                output.flush();
+            }
+            if (temp.length() == 0) {
+                return false;
+            }
+            started = replayVideoInvoke(callback, temp);
+            return started;
+        } catch (Throwable t) {
+            Logger.printException(() -> "Could not hand the picked video to the camera", t);
+            return false;
+        } finally {
+            if (!started && temp != null) {
+                // The real callback reads the file asynchronously, so a started upload is not
+                // deleted; a failed one leaves nothing useful behind.
+                //noinspection ResultOfMethodCallIgnored
+                temp.delete();
+            }
+        }
+    }
+
+    /** Runs the kept video callback with [file], answering whether it was started. */
+    private static boolean replayVideoInvoke(Object[] callback, File file) {
+        try {
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "replaying the recorded-video callback with the picked video");
+            syntheticVideo = true;
+            try {
+                java.lang.reflect.Method invoke = callback[0].getClass().getMethod(
+                    "invoke", Object.class);
+                invoke.invoke(callback[0], file);
+            } finally {
+                syntheticVideo = false;
+            }
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "the recorded-video callback took the picked video");
+            return true;
+        } catch (Throwable t) {
+            Logger.printException(() -> "Could not replay the recorded-video callback", t);
+            return false;
+        }
+    }
+
+    /** The field [name] of [owner] or a superclass, or null. */
+    @Nullable
+    private static Object field(Object owner, String name) {
+        Class<?> type = owner.getClass();
+        while (type != null) {
+            try {
+                java.lang.reflect.Field field = type.getDeclaredField(name);
+                field.setAccessible(true);
+                return field.get(owner);
+            } catch (NoSuchFieldException ignored) {
+                type = type.getSuperclass();
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /** Runs the kept callback with [bitmap], answering whether it was taken. */
@@ -399,6 +549,30 @@ public final class InstantsGallery {
 
         private static float dpFloat(Context context, float value) {
             return value * context.getResources().getDisplayMetrics().density;
+        }
+    }
+
+    /** The video half of the gallery glyph: a play mark inside the same frame. */
+    private static final class VideoGlyph extends BitmapDrawable {
+        private VideoGlyph(Context context) {
+            super(context.getResources(), Bitmap.createBitmap(dp(context, 24), dp(context, 24), Bitmap.Config.ARGB_8888));
+            Canvas canvas = new Canvas(getBitmap());
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(0xFFFFFFFF);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(context, 2f));
+            canvas.drawRoundRect(dp(context, 4f), dp(context, 5f), dp(context, 20f), dp(context, 19f), dp(context, 2.5f), dp(context, 2.5f), paint);
+            paint.setStyle(Paint.Style.FILL);
+            Path play = new Path();
+            play.moveTo(dp(context, 10f), dp(context, 8.5f));
+            play.lineTo(dp(context, 17f), dp(context, 12f));
+            play.lineTo(dp(context, 10f), dp(context, 15.5f));
+            play.close();
+            canvas.drawPath(play, paint);
+        }
+
+        private static int dp(Context context, float value) {
+            return Math.round(value * context.getResources().getDisplayMetrics().density);
         }
     }
 }

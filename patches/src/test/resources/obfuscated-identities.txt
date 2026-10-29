@@ -36,3 +36,7 @@ extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/Ins
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A07
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A0D
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A13
+
+# 453 video callback: the recorded-video lambda holds its Context (A01) and camera viewmodel (A00).
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsGallery.java|A00
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsGallery.java|A01

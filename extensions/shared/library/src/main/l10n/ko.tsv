@@ -1241,6 +1241,8 @@ Instant marked as seen	인스턴트가 읽음으로 표시됨
 Keep instants unseen	인스턴트를 보지 않은 상태로 유지
 Viewed instants stay unseen until you tap the eye button	눈 버튼을 누를 때까지 본 인스턴트가 읽지 않음으로 유지됩니다
 Take one normal Instants photo first	먼저 일반 인스턴트 사진을 한 장 찍으세요
+Take one normal Instants video first	먼저 일반 인스턴트 동영상을 하나 녹화하세요
+That video couldn't be read	그 동영상을 읽을 수 없습니다
 # context: read aloud after a settings row's name when a dot marks it as added since the settings were last opened
 New	새로 추가됨
 App icon	앱 아이콘

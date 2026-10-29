@@ -28,6 +28,7 @@ import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 
 internal const val GALLERY = "$EXTENSION_PACKAGE/download/InstantsGallery;"
 internal const val CAMERA_HOOK = "$GALLERY->cameraOpened(Ljava/lang/Object;)V"
+internal const val VIDEO_HOOK = "$GALLERY->videoInvoke(Ljava/lang/Object;Ljava/lang/Object;)V"
 /**
  * Adds the transparent photo-picker activity, [GalleryPickActivity], to Instagram's manifest:
  * exportless, on the framework's translucent theme so the system picker opens over the camera.
@@ -73,9 +74,9 @@ internal const val GALLERY_PATCH = "Add photos from the gallery to instants"
 @Suppress("unused")
 val galleryInstantsPatch = bytecodePatch(
     name = "Add photos from the gallery to instants",
-    description = "Puts a gallery button on the Instants camera. After one normal Instants photo, pick a " +
-        "picture from your phone, frame it in the square Instants viewfinder, and " +
-        "Instagram opens the instant preview with it, ready to send, the same " +
+    description = "Puts gallery buttons on the Instants camera. After one normal Instants photo or " +
+        "video, pick a picture or video from your phone. Pictures can be framed in the square " +
+        "Instants viewfinder; both open Instagram's instant preview ready to send, the same " +
         "pipeline a shutter press uses. Starts off. Turn it on in HushGram settings > Messages.",
     default = false,
 ) {
@@ -107,6 +108,7 @@ val galleryInstantsPatch = bytecodePatch(
             fillStateSourceStub(handoff, accessor)
         }
         hookCaptureCallback(findCaptureCallback())
+        hookVideoCallback(findVideoCallback())
         enableStatus("galleryInstants")
     }
 }
@@ -315,6 +317,48 @@ internal fun BytecodePatchContext.hookCaptureCallback(callback: Method) {
         "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;" +
         "Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V"
     mutable.addInstructions(0, "invoke-static/range {p0 .. p8}, $call")
+}
+
+/**
+ * The camera's recorded-video callback: the one-argument [Function1.invoke] whose body builds
+ * the `$onVideoRecorded$3` state machine. It captures the live camera context, viewmodel, and
+ * recording controllers, and takes the finished [java.io.File]; replaying it with a picked
+ * video runs Instagram's own compose/upload pipeline.
+ */
+internal fun BytecodePatchContext.findVideoCallback(): Method {
+    val found = mutableListOf<Method>()
+    classDefForEach { classDef ->
+        classDef.methods.forEach { method ->
+            if (method.name == "invoke" &&
+                method.parameterTypes.size == 1 &&
+                method.parameterTypes[0].toString() == "Ljava/lang/Object;" &&
+                method.returnType == "Ljava/lang/Object;" &&
+                method.implementation?.instructions?.toList().orEmpty().any { instruction ->
+                    val reference = (instruction as? ReferenceInstruction)?.reference
+                    reference is TypeReference &&
+                        reference.type ==
+                        "Lcom/instagram/quicksnap/camera/domain/QuickSnapCameraViewModel\$onVideoRecorded\$3;"
+                } == true
+            ) {
+                found += method
+            }
+        }
+    }
+    return found.singleOrNull() ?: throw PatchException(
+        "Add photos from the gallery to instants: expected one video callback, found " +
+            if (found.isEmpty()) "none" else found.joinToString { "${it.definingClass}->invoke" },
+    )
+}
+
+/**
+ * Records the video callback's instance and file at its entry. The extension replays it with
+ * the picked video, so Instagram's own compose and upload path is used.
+ */
+internal fun BytecodePatchContext.hookVideoCallback(callback: Method) {
+    val mutable = mutableClassDefBy(callback.definingClass).methods.single {
+        it.name == callback.name && it.parameterTypes == callback.parameterTypes
+    }
+    mutable.addInstructions(0, "invoke-static/range {p0 .. p1}, $VIDEO_HOOK")
 }
 
 /**

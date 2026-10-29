@@ -32,10 +32,14 @@ class GalleryInstantsHookTest {
         val declared = ExtensionDex.classDef(GALLERY).methods
             .filter { AccessFlags.PUBLIC.isSet(it.accessFlags) && AccessFlags.STATIC.isSet(it.accessFlags) }
             .map { "${it.name}(${it.parameterTypes.joinToString("")})${it.returnType}" }
-        for (hook in listOf(CAMERA_HOOK)) {
+        for (hook in listOf(CAMERA_HOOK, VIDEO_HOOK)) {
             assertTrue("$hook is not in the extension: $declared", hook.substringAfter("->") in declared)
         }
         assertTrue("publish is not in the extension: $declared", declared.any { it.startsWith("publish(") })
+        assertTrue("captureVideo is not in the extension: $declared",
+            declared.any { it.startsWith("captureVideo(") })
+        assertTrue("hasVideoCapture is not in the extension: $declared",
+            declared.any { it.startsWith("hasVideoCapture(") })
     }
 
     @Test
@@ -68,6 +72,18 @@ class GalleryInstantsHookTest {
                     .contains("->captureInvoke(")
             },
         )
+
+        val video = context.findVideoCallback()
+        context.hookVideoCallback(video)
+        assertTrue(
+            "$label: the video callback isn't recorded",
+            context.mutableClassDefBy(video.definingClass).methods.single {
+                it.name == video.name && it.parameterTypes == video.parameterTypes
+            }.implementation!!.instructions.first().let {
+                (it as? ReferenceInstruction)?.reference.toString().orEmpty()
+                    .contains("->videoInvoke(")
+            },
+        )
     }
 
     /**
@@ -81,8 +97,16 @@ class GalleryInstantsHookTest {
                 val keep = candidate.type == CAMERA_VM ||
                     candidate.fields.any { it.type.toString() == CAMERA_VM } ||
                     candidate.methods.any { method ->
-                        AccessFlags.STATIC.isSet(method.accessFlags) &&
-                            method.parameterTypes.any { it.toString() == CAMERA_VM }
+                        (AccessFlags.STATIC.isSet(method.accessFlags) &&
+                            method.parameterTypes.any { it.toString() == CAMERA_VM }) ||
+                            (method.name == "invoke" && method.parameterTypes.size == 1 &&
+                                method.returnType == "Ljava/lang/Object;" &&
+                                method.implementation?.instructions?.toList().orEmpty().any { instruction ->
+                                    val reference = (instruction as? ReferenceInstruction)?.reference
+                                    reference is com.android.tools.smali.dexlib2.iface.reference.TypeReference &&
+                                        reference.type ==
+                                        "Lcom/instagram/quicksnap/camera/domain/QuickSnapCameraViewModel\$onVideoRecorded\$3;"
+                                })
                     }
                 if (keep) kept += candidate
             }

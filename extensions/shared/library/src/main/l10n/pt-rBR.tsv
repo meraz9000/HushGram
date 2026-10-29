@@ -1242,6 +1242,8 @@ Instant marked as seen	Instante marcado como visto
 Keep instants unseen	Manter os Instantes como não vistos
 Viewed instants stay unseen until you tap the eye button	Os Instantes que você vê continuam não vistos até você tocar no botão de olho
 Take one normal Instants photo first	Primeiro tire uma foto normal de Instants
+Take one normal Instants video first	Primeiro grave um vídeo normal de Instants
+That video couldn't be read	Não foi possível ler esse vídeo
 # context: read aloud after a settings row's name when a dot marks it as added since the settings were last opened
 New	Novo
 App icon	Ícone do app

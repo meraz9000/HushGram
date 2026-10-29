@@ -1242,6 +1242,8 @@ Instant marked as seen	Anlık görüldü olarak işaretlendi
 Keep instants unseen	Anlıkları görülmemiş tut
 Viewed instants stay unseen until you tap the eye button	Göz düğmesine dokunana kadar izlediğin Anlıklar görülmemiş kalır
 Take one normal Instants photo first	Önce normal bir Instants fotoğrafı çek
+Take one normal Instants video first	Önce normal bir Instants videosu kaydet
+That video couldn't be read	Bu video okunamadı
 # context: read aloud after a settings row's name when a dot marks it as added since the settings were last opened
 New	Yeni
 App icon	Uygulama simgesi

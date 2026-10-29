@@ -1309,5 +1309,7 @@ Puts a Save button in the reply bar under the story or instant you're watching. 
 Puts a gallery button on the Instants camera. Pick a photo and Instagram opens the instant preview with it, ready to send, the same pipeline a shutter press uses.	在 Instants 相機上加入相簿按鈕。選取照片後，Instagram 會用它開啟 Instant 預覽，準備傳送，流程與按下快門相同。
 Save button on stories and instants	限時動態與 Instants 的儲存按鈕
 Take one normal Instants photo first	請先拍一張一般的 Instants 照片
+Take one normal Instants video first	請先錄製一段一般的 Instants 影片
+That video couldn't be read	無法讀取該影片
 That photo couldn't be read	無法讀取該照片
 Viewed instants stay unseen until you tap the eye button	看過的 Instants 會保持未看過，直到你輕點眼睛按鈕
