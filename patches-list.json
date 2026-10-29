@@ -44,7 +44,7 @@
     },
     {
       "name": "Add photos from the gallery to instants",
-      "description": "Puts gallery buttons on the Instants camera. Pick a picture or video from your phone. A picture needs one normal Instants photo first, then opens in the square Instants viewfinder; a video uses the camera's recorded-video callback and needs no seed video. Both open Instagram's instant preview ready to send, the same pipeline a shutter press uses. Starts off. Turn it on in HushGram settings > Messages.",
+      "description": "Puts gallery buttons on the Instants camera. Pick a picture or video from your phone. A picture opens in the square Instants viewfinder; a video opens a lossless trim screen with start and end handles, or you can send the whole file. Both use the camera's own callbacks and need no normal Instants capture first, and both open Instagram's instant preview ready to send. Starts off. Turn it on in HushGram settings > Messages.",
       "category": "Messages",
       "use": false,
       "dependencies": [

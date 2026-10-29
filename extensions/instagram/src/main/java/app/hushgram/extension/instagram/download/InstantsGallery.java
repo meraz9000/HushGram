@@ -63,6 +63,8 @@ public final class InstantsGallery {
     private static volatile Object[] lastVideoInvoke;
     /** True while the extension itself is replaying the video callback. */
     private static volatile boolean syntheticVideo;
+    /** The photo callback the camera builds when it opens, before any shutter press. */
+    private static volatile Object lastPhotoFactory;
 
     /** The floating glyph and its hide timer. */
     private static volatile PopupWindow glyph;
@@ -246,10 +248,36 @@ public final class InstantsGallery {
         }
     }
 
-    /** Whether a normal Instants capture has been recorded, so a gallery picture can replay it. */
+    /** Whether a normal Instants capture or the camera-open photo callback is available. */
     public static boolean hasCapture() {
         Object[] callback = lastInvoke;
-        return callback != null && callback.length == 9 && callback[0] != null;
+        return (callback != null && callback.length == 9 && callback[0] != null)
+            || lastPhotoFactory != null;
+    }
+
+    /**
+     * Called when the camera builds its photo callback lambda. Keeping that live lambda lets a
+     * gallery photo run the camera's own capture path without taking a seed photo first.
+     */
+    public static void photoCallback(Object callback) {
+        try {
+            if (synthetic || callback == null) {
+                return;
+            }
+            Object context = field(callback, "A00");
+            Object viewModel = field(callback, "A01");
+            Object pipeline = field(callback, "A02");
+            if (!(context instanceof Context) || viewModel == null || pipeline == null ||
+                !"com.instagram.quicksnap.camera.domain.QuickSnapCameraViewModel"
+                    .equals(viewModel.getClass().getName())) {
+                return;
+            }
+            lastPhotoFactory = callback;
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "kept the camera's photo callback when the camera opened");
+        } catch (Throwable t) {
+            Logger.printException(() -> "Could not keep the camera's photo callback", t);
+        }
     }
 
     /**
@@ -344,7 +372,7 @@ public final class InstantsGallery {
             if (temp.length() == 0) {
                 return false;
             }
-            started = replayVideoInvoke(callback, temp);
+            started = captureVideoFile(temp);
             return started;
         } catch (Throwable t) {
             Logger.printException(() -> "Could not hand the picked video to the camera", t);
@@ -357,6 +385,20 @@ public final class InstantsGallery {
                 temp.delete();
             }
         }
+    }
+
+    /**
+     * Runs the kept video callback with an already-prepared file, such as a trimmed clip. The
+     * caller owns the file: Instagram reads it asynchronously after this returns.
+     */
+    public static boolean captureVideoFile(@Nullable File file) {
+        Object[] callback = lastVideoInvoke;
+        if (file == null || callback == null || callback.length != 2 || callback[0] == null) {
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "no camera video callback to hand a prepared video to");
+            return false;
+        }
+        return replayVideoInvoke(callback, file);
     }
 
     /** Runs the kept video callback with [file], answering whether it was started. */
@@ -428,6 +470,54 @@ public final class InstantsGallery {
     }
 
     /**
+     * Runs the camera-open photo lambda with a synthesized shutter argument set. The lambda
+     * captures the live context, viewmodel, and still pipeline; the only object the camera
+     * normally supplies that cannot be read from those is the crop data class, which is a
+     * no-arg value object. Null passes through the optional effect/UI arguments.
+     */
+    private static boolean replayPhotoFactory(Object callback, Bitmap bitmap) {
+        try {
+            Object crop;
+            try {
+                // Jadx's C785200Uur is the runtime class X.0Uur on this build. The value class
+                // has no constructor in the dex, so allocate it without running one; it is only
+                // passed through as a non-null placeholder on the non-HQ photo path.
+                Class<?> cropType = Class.forName("X.0Uur");
+                try {
+                    crop = cropType.getDeclaredConstructor().newInstance();
+                } catch (NoSuchMethodException noConstructor) {
+                    Class<?> unsafeType = Class.forName("sun.misc.Unsafe");
+                    java.lang.reflect.Field field = unsafeType.getDeclaredField("theUnsafe");
+                    field.setAccessible(true);
+                    Object unsafe = field.get(null);
+                    crop = unsafeType.getMethod("allocateInstance", Class.class)
+                        .invoke(unsafe, cropType);
+                }
+            } catch (Throwable t) {
+                Logger.printException(() -> "The camera's crop value object is unavailable", t);
+                return false;
+            }
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "replaying the camera-open photo callback with the picked picture");
+            synthetic = true;
+            try {
+                java.lang.reflect.Method invoke = callback.getClass().getMethod(
+                    "invoke", Object.class, Object.class, Object.class, Object.class,
+                    Object.class, Object.class, Object.class, Object.class);
+                invoke.invoke(callback, bitmap, "", null, null, crop, false, null, false);
+            } finally {
+                synthetic = false;
+            }
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "the camera-open photo callback took the picked picture");
+            return true;
+        } catch (Throwable t) {
+            Logger.printException(() -> "Could not replay the camera-open photo callback", t);
+            return false;
+        }
+    }
+
+    /**
      * Called with the picture the picker read. Hands it to the camera's pipeline through
      * {@link #publish}, answering whether that was possible. Never throws.
      */
@@ -436,20 +526,22 @@ public final class InstantsGallery {
             if (bitmap == null) {
                 return false;
             }
-            // The camera's own capture callback is the path the shutter uses: it builds fresh
-            // options from the live viewmodel, saves and overlays the picture, updates the
-            // state, and launches the capture with arguments that are all still valid. Running
-            // it with the picked picture is the gallery equivalent of a shutter press. It is
-            // recorded on the camera's first normal capture, so the button needs one photo.
+            // A real shutter press gives the most faithful argument set. Before one happens,
+            // the lambda the camera built when it opened carries the same live context and
+            // viewmodel, so it can run with synthesized crop/UI arguments instead.
             Object[] callback = lastInvoke;
-            if (callback == null || callback.length != 9 || callback[0] == null) {
+            if (callback != null && callback.length == 9 && callback[0] != null) {
                 Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
-                    () -> "no camera capture recorded yet; take one normal Instants photo first");
-                return false;
+                    () -> "replaying the photo capture callback with the picked picture");
+                return replayInvoke(callback, bitmap);
+            }
+            Object factory = lastPhotoFactory;
+            if (factory != null) {
+                return replayPhotoFactory(factory, bitmap);
             }
             Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
-                () -> "replaying the photo capture callback with the picked picture");
-            return replayInvoke(callback, bitmap);
+                () -> "no camera capture recorded yet; take one normal Instants photo first");
+            return false;
         } catch (Throwable t) {
             Logger.printException(() -> "Could not hand the picked picture to the camera", t);
             return false;

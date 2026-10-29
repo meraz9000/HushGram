@@ -32,7 +32,7 @@ class GalleryInstantsHookTest {
         val declared = ExtensionDex.classDef(GALLERY).methods
             .filter { AccessFlags.PUBLIC.isSet(it.accessFlags) && AccessFlags.STATIC.isSet(it.accessFlags) }
             .map { "${it.name}(${it.parameterTypes.joinToString("")})${it.returnType}" }
-        for (hook in listOf(CAMERA_HOOK, VIDEO_HOOK, VIDEO_CALLBACK)) {
+        for (hook in listOf(CAMERA_HOOK, VIDEO_HOOK, VIDEO_CALLBACK, PHOTO_CALLBACK)) {
             assertTrue("$hook is not in the extension: $declared", hook.substringAfter("->") in declared)
         }
         assertTrue("publish is not in the extension: $declared", declared.any { it.startsWith("publish(") })
@@ -63,6 +63,7 @@ class GalleryInstantsHookTest {
         context.hookCameraOpened()
         val callback = context.findCaptureCallback()
         context.hookCaptureCallback(callback)
+        context.hookPhotoFactory(callback)
         assertTrue(
             "$label: the capture callback isn't recorded",
             context.mutableClassDefBy(callback.definingClass).methods.single {
@@ -70,6 +71,16 @@ class GalleryInstantsHookTest {
             }.implementation!!.instructions.first().let {
                 (it as? ReferenceInstruction)?.reference.toString().orEmpty()
                     .contains("->captureInvoke(")
+            },
+        )
+
+        assertTrue(
+            "$label: the photo factory isn't recorded",
+            context.mutableClassDefBy(callback.definingClass).methods.single {
+                it.name == "<init>" && it.parameterTypes.size == 3
+            }.implementation!!.instructions.any {
+                (it as? ReferenceInstruction)?.reference.toString().orEmpty()
+                    .contains("->photoCallback(")
             },
         )
 

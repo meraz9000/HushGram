@@ -30,6 +30,7 @@ internal const val GALLERY = "$EXTENSION_PACKAGE/download/InstantsGallery;"
 internal const val CAMERA_HOOK = "$GALLERY->cameraOpened(Ljava/lang/Object;)V"
 internal const val VIDEO_HOOK = "$GALLERY->videoInvoke(Ljava/lang/Object;Ljava/lang/Object;)V"
 internal const val VIDEO_CALLBACK = "$GALLERY->videoCallback(Ljava/lang/Object;)V"
+internal const val PHOTO_CALLBACK = "$GALLERY->photoCallback(Ljava/lang/Object;)V"
 /**
  * Adds the transparent photo-picker activity, [GalleryPickActivity], to Instagram's manifest:
  * exportless, on the framework's translucent theme so the system picker opens over the camera.
@@ -76,10 +77,10 @@ internal const val GALLERY_PATCH = "Add photos from the gallery to instants"
 val galleryInstantsPatch = bytecodePatch(
     name = "Add photos from the gallery to instants",
     description = "Puts gallery buttons on the Instants camera. Pick a picture or video from your " +
-        "phone. A picture needs one normal Instants photo first, then opens in the square Instants " +
-        "viewfinder; a video uses the camera's recorded-video callback and needs no seed video. " +
-        "Both open Instagram's instant preview ready to send, the same pipeline a shutter press " +
-        "uses. Starts off. Turn it on in HushGram settings > Messages.",
+        "phone. A picture opens in the square Instants viewfinder; a video opens a lossless trim " +
+        "screen with start and end handles, or you can send the whole file. Both use the camera's " +
+        "own callbacks and need no normal Instants capture first, and both open Instagram's instant " +
+        "preview ready to send. Starts off. Turn it on in HushGram settings > Messages.",
     default = false,
 ) {
     category("Messages")
@@ -109,7 +110,9 @@ val galleryInstantsPatch = bytecodePatch(
             fillStateStub(accessor)
             fillStateSourceStub(handoff, accessor)
         }
-        hookCaptureCallback(findCaptureCallback())
+        val capture = findCaptureCallback()
+        hookCaptureCallback(capture)
+        hookPhotoFactory(capture)
         val video = findVideoCallback()
         hookVideoCallback(video)
         hookVideoFactory(video)
@@ -321,6 +324,32 @@ internal fun BytecodePatchContext.hookCaptureCallback(callback: Method) {
         "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;" +
         "Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)V"
     mutable.addInstructions(0, "invoke-static/range {p0 .. p8}, $call")
+}
+
+/**
+ * Keeps the camera's photo lambda when Compose builds it, before any shutter press. The lambda
+ * closes over the camera's context, viewmodel, and still pipeline, so replaying it with a picked
+ * picture and synthesized crop/UI arguments avoids requiring a seed photo first.
+ */
+internal fun BytecodePatchContext.hookPhotoFactory(callback: Method) {
+    val mutable = mutableClassDefBy(callback.definingClass).methods.singleOrNull {
+        it.name == "<init>" && it.parameterTypes.size == 3 &&
+            it.parameterTypes[0].toString() == "Landroid/content/Context;"
+    } ?: throw PatchException(
+        "Add photos from the gallery to instants: ${callback.definingClass} has no photo factory",
+    )
+    val code = mutable.implementation!!.instructions.toList()
+    val at = code.indexOfLast { it.opcode == Opcode.RETURN_VOID }
+    if (at < 0) throw PatchException(
+        "Add photos from the gallery to instants: ${callback.definingClass} factory never returns",
+    )
+    mutable.addInstructions(
+        at,
+        """
+            move-object/from16 v0, p0
+            invoke-static {v0}, $PHOTO_CALLBACK
+        """,
+    )
 }
 
 /**

@@ -43,3 +43,9 @@ extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/Ins
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsGallery.java|A01
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsGallery.java|A02
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsGallery.java|A03
+
+# 453 trim screen: "End" is the end-time label on the seek bar, not an obfuscated class.
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/GalleryPickActivity.java|End
+
+# 453 photo callback: runtime name of the options object allocated without a constructor.
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsGallery.java|X.0Uur
