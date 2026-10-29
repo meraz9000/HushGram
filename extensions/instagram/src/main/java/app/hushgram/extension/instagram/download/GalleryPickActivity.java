@@ -118,10 +118,14 @@ public final class GalleryPickActivity extends Activity {
                 return;
             }
             if (!InstantsGallery.hasCapture()) {
+                Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                    SOURCE, () -> "photo seed missing after decode");
                 Utils.showToastLong(L10n.t("Take one normal Instants photo first"));
                 finish();
                 return;
             }
+            Logger.diagnosticInfo(app.hushgram.extension.shared.diagnostics.DiagnosticCategory.DOWNLOADS,
+                SOURCE, () -> "photo seed present after decode; framing");
             showFraming(bitmap);
         } catch (Throwable t) {
             Logger.printException(() -> "Could not read the picked media", t);

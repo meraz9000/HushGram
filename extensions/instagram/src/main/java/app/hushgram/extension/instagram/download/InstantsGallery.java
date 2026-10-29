@@ -239,6 +239,8 @@ public final class InstantsGallery {
             lastInvoke = new Object[] {
                 callback, bitmap, text, config, stamp, stateSource, flag, effect, extra,
             };
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "kept the photo capture callback for the gallery");
         } catch (Throwable t) {
             Logger.printException(() -> "Could not keep the capture callback's arguments", t);
         }
@@ -275,7 +277,37 @@ public final class InstantsGallery {
         }
     }
 
-    /** Whether a normal Instants video has been recorded, so a gallery video can replay it. */
+    /**
+     * Called when the camera builds its recorded-video lambda. Keeping that live lambda lets a
+     * gallery video run the camera's own compose/upload path without recording a seed video first.
+     */
+    public static void videoCallback(Object callback) {
+        try {
+            if (syntheticVideo || callback == null) {
+                return;
+            }
+            Object context = field(callback, "A01");
+            Object viewModel = field(callback, "A00");
+            Object controllerA = field(callback, "A02");
+            Object controllerB = field(callback, "A03");
+            // The video branch captures Context, the camera viewmodel, and two C0TVT controllers.
+            // Do not key this on $t: the lambda case number is obfuscation, not API.
+            if (!(context instanceof Context) || viewModel == null ||
+                !"com.instagram.quicksnap.camera.domain.QuickSnapCameraViewModel"
+                    .equals(viewModel.getClass().getName()) ||
+                controllerA == null || controllerB == null ||
+                !controllerA.getClass().getName().equals(controllerB.getClass().getName())) {
+                return;
+            }
+            lastVideoInvoke = new Object[] {callback, null};
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "kept the camera's video callback when the camera opened");
+        } catch (Throwable t) {
+            Logger.printException(() -> "Could not keep the camera's video callback", t);
+        }
+    }
+
+    /** Whether an Instants video callback has been recorded, so a gallery video can replay it. */
     public static boolean hasVideoCapture() {
         Object[] callback = lastVideoInvoke;
         return callback != null && callback.length == 2 && callback[0] != null;
@@ -415,6 +447,8 @@ public final class InstantsGallery {
                     () -> "no camera capture recorded yet; take one normal Instants photo first");
                 return false;
             }
+            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE,
+                () -> "replaying the photo capture callback with the picked picture");
             return replayInvoke(callback, bitmap);
         } catch (Throwable t) {
             Logger.printException(() -> "Could not hand the picked picture to the camera", t);
