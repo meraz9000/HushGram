@@ -45,7 +45,7 @@ class KeepInstantsUnseenHookTest {
         for (hook in listOf(
             ON_SEEN_VIEW, ON_SEEN_STORY, ON_CONSUME, BEFORE_SEEN_WRITE,
             FILTER_SEEN_IDS, BEFORE_FETCHER_SEEN, FETCHER_STATE,
-            SEEN_MAINTENANCE, EMPTY_SEEN, BEFORE_SEEN_LIST, FETCH_DECISION, VIEWER_CLOSE,
+            BEFORE_SEEN_LIST, FETCH_DECISION, VIEWER_CLOSE,
         )) {
             assertTrue("$hook is not in the extension: $declared", hook.substringAfter("->") in declared)
         }
@@ -78,7 +78,7 @@ class KeepInstantsUnseenHookTest {
         context.hookConsumption(reference)
         val manager = context.findSeenManager()
         context.hookSeenWrite(manager)
-        context.hookSeenManagerMaintenance(manager)
+        context.hookBulkSeen(manager)
         context.hookSeenRequest()
         context.hookFetcherSeen()
         context.hookViewerClose()
@@ -97,7 +97,7 @@ class KeepInstantsUnseenHookTest {
 
         // The seen write is guarded and skips with a plain return.
         val write = context.mutableClassDefBy(manager.type).methods.single {
-            it.name == "A04" && it.parameterTypes.map(Any::toString) == listOf("Ljava/lang/String;")
+            it.name == "A03" && it.parameterTypes.map(Any::toString) == listOf("Ljava/lang/String;")
         }
         val writeCode = write.implementation!!.instructions.toList()
         assertTrue(
@@ -109,21 +109,9 @@ class KeepInstantsUnseenHookTest {
             writeCode.any { it.opcode == Opcode.RETURN_VOID },
         )
 
-        // The stale hard seen set is cleared once, and the soft/bulk seen passes are skipped.
-        val maintenance = context.mutableClassDefBy(manager.type).methods.single {
-            it.name == "A02" && it.parameterTypes.isEmpty()
-        }
-        val maintenanceCode = maintenance.implementation!!.instructions.toList()
-        assertTrue(
-            "$label: the seen maintenance isn't guarded",
-            maintenanceCode.any { it.reference() == SEEN_MAINTENANCE },
-        )
-        assertTrue(
-            "$label: the stale seen set isn't replaced",
-            maintenanceCode.any { it.reference() == EMPTY_SEEN },
-        )
+        // The bulk seen write is skipped; the eye's single write above still runs.
         val bulk = context.mutableClassDefBy(manager.type).methods.single {
-            it.name == "A05" && it.parameterTypes.map(Any::toString) == listOf("Ljava/util/List;")
+            it.name == "A04" && it.parameterTypes.map(Any::toString) == listOf("Ljava/util/List;")
         }
         assertTrue(
             "$label: the bulk seen write isn't guarded",
@@ -133,7 +121,7 @@ class KeepInstantsUnseenHookTest {
         // The server seen request's ids are filtered before the mutation is built.
         val api = context.mutableClassDefBy("Lcom/instagram/quicksnap/data/api/QuickSnapApi;")
             .methods.single {
-                it.name == "A0C" && it.parameterTypes.size == 2 &&
+                it.name == "A0D" && it.parameterTypes.size == 2 &&
                     it.parameterTypes[0].toString() == "Ljava/util/List;"
             }
         val apiCode = api.implementation!!.instructions.toList()
@@ -142,32 +130,20 @@ class KeepInstantsUnseenHookTest {
             apiCode.any { it.reference() == FILTER_SEEN_IDS },
         )
 
-        // The viewer host's close commit is adjusted just before it reads the pending set.
-        val pending = manager.fields.single { it.name == "A05" }
-        val pendingRef = "${manager.type}->${pending.name}:${pending.type}"
-        var closeCode: List<com.android.tools.smali.dexlib2.iface.instruction.Instruction>? = null
-        context.classDefForEach { classDef ->
-            classDef.methods.firstOrNull { method ->
-                method.name == "onDestroy" && method.parameterTypes.isEmpty() &&
-                    method.returnType == "V" && method.implementation?.instructions?.any {
-                        it.opcode == Opcode.IGET_OBJECT && it.reference() == pendingRef
-                    } == true
-            }?.let { closeCode = it.implementation!!.instructions.toList() }
-        }
+        // The 453 viewer's close sync is `A13()`; it is adjusted before it reads the seen set.
+        val close = context.mutableClassDefBy(
+            "Lcom/instagram/quicksnap/viewer/viewmodel/QuickSnapConsumptionViewModel;",
+        ).methods.single { it.name == "A13" && it.parameterTypes.isEmpty() }
         assertTrue(
-            "$label: the viewer host's pending seen read wasn't found",
-            closeCode != null,
-        )
-        assertTrue(
-            "$label: the viewer host's close commit isn't adjusted",
-            closeCode!!.any { it.reference() == VIEWER_CLOSE },
+            "$label: the viewer's close commit isn't adjusted",
+            close.implementation!!.instructions.toList().any { it.reference() == VIEWER_CLOSE },
         )
 
         // The fetcher's update is skipped and its current tray state returned instead.
         val fetcher = context.mutableClassDefBy(
             "Lcom/instagram/quicksnap/data/repository/QuickSnapFetcher;",
         ).methods.single {
-            it.name == "A04" && it.parameterTypes.size == 2 &&
+            it.name == "A03" && it.parameterTypes.size == 2 &&
                 it.parameterTypes[0].toString() == "Ljava/util/List;"
         }
         val fetcherCode = fetcher.implementation!!.instructions.toList()
@@ -189,7 +165,7 @@ class KeepInstantsUnseenHookTest {
         // the current state instead of re-fetching and dropping the older instants.
         val fetcherType = "Lcom/instagram/quicksnap/data/repository/QuickSnapFetcher;"
         val fetch = context.mutableClassDefBy(fetcherType)
-            .methods.single { it.name == "A03" && it.parameterTypes.size == 5 }
+            .methods.single { it.name == "A02" && it.parameterTypes.size == 5 }
         val fetchCode = fetch.implementation!!.instructions.toList()
         assertTrue(
             "$label: the fetcher's list-preserving decision isn't applied",
@@ -275,6 +251,7 @@ class KeepInstantsUnseenHookTest {
                 }
                 val keep = candidate.type == ROOM_LOADER || marker || writesAReelItem ||
                     candidate.type == REEL_ITEM || consumption || seenManager || viewerHost ||
+                    candidate.type == "Lcom/instagram/quicksnap/viewer/viewmodel/QuickSnapConsumptionViewModel;" ||
                     candidate.type == "Lcom/instagram/quicksnap/data/api/QuickSnapApi;" ||
                     candidate.type == "Lcom/instagram/quicksnap/data/repository/QuickSnapFetcher;" ||
                     candidate.type == "Lcom/instagram/quicksnap/data/repository/QuickSnapRepository;" ||

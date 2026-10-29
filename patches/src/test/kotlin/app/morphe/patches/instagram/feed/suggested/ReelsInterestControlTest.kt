@@ -30,6 +30,7 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /** The Reels footer's 'Are you interested?' row (#131): its control passes FeedInterest right before it's stored. */
@@ -96,8 +97,10 @@ class ReelsInterestControlTest {
     /** The same in the other builds of each declared version. */
     @Test
     fun eachOtherBuildHooksTheReelsControl() {
+        val others = Fixtures.otherBuilds()
+        assumeTrue("no other build in this fixture set", others.isNotEmpty())
         var checked = 0
-        for (apk in Fixtures.otherBuilds()) {
+        for (apk in others) {
             hooksTheReelsControl(apk, apk.parentFile.name)
             checked++
         }

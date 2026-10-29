@@ -360,7 +360,10 @@ class DownloadStoryHookTest {
                 // #339: your own highlights' menus are lists, the highlight sheet's among them.
                 val lists = statics.filter { it.returnType == "Ljava/util/ArrayList;" && menu.type in it.parameterTypes.map(Any::toString) }
                 assertTrue("${bundle.name}: no list builder holds the highlight sheet's name", lists.any { list ->
-                    list.code().any { it.opcode == Opcode.CONST_STRING && it.referenceText() == "story_highlight_action_sheet" }
+                    list.code().any {
+                        (it.opcode == Opcode.CONST_STRING || it.opcode == Opcode.CONST_STRING_JUMBO) &&
+                            it.referenceText() == "story_highlight_action_sheet"
+                    }
                 })
                 val notJumps = setOf(Opcode.PACKED_SWITCH, Opcode.SPARSE_SWITCH, Opcode.FILL_ARRAY_DATA)
                 lists.forEach { list ->

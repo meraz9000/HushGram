@@ -22,9 +22,9 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The gallery handoff: the camera viewmodel's fourteen-parameter capture call is found, the
- * extension's publish stub takes its invocations with the picked Bitmap, and the camera screen
- * render hands the viewmodel over on the declared build.
+ * The gallery handoff: the camera viewmodel's fifteen-parameter capture call is found and the
+ * shutter callback is recorded. On 453 the legacy fourteen-parameter publish stubs cannot be
+ * filled, so the gallery replays that recorded callback instead.
  */
 class GalleryInstantsHookTest {
     @Test
@@ -54,15 +54,9 @@ class GalleryInstantsHookTest {
     private fun check(bundle: File, label: String) {
         val context = PatchContexts.of(candidates(bundle) + ExtensionDex.classDef(GALLERY))
         val handoff = context.findCaptureHandoff()
-        assertEquals("$label: the handoff's width", 14, handoff.parameterTypes.size)
-        context.fillPublishStub(handoff)
-        context.fillReplayStub(handoff)
-        context.hookCaptureArgs(handoff)
+        assertEquals("$label: the handoff's width", 15, handoff.parameterTypes.size)
+        assertEquals("$label: the wrong handoff was found", "A06", handoff.name)
         context.hookCameraOpened()
-        context.hookStateAccessor()
-        val accessor = stateAccessor ?: throw AssertionError("$label: no state accessor")
-        context.fillStateStub(accessor)
-        context.fillStateSourceStub(handoff, accessor)
         val callback = context.findCaptureCallback()
         context.hookCaptureCallback(callback)
         assertTrue(
@@ -72,67 +66,6 @@ class GalleryInstantsHookTest {
             }.implementation!!.instructions.first().let {
                 (it as? ReferenceInstruction)?.reference.toString().orEmpty()
                     .contains("->captureInvoke(")
-            },
-        )
-
-        for (stubName in listOf("publish", "replay")) {
-            val stub = context.mutableClassDefBy(GALLERY).methods.single { it.name == stubName }
-            val code = stub.implementation!!.instructions.toList()
-            assertTrue(
-                "$label: the $stubName stub doesn't call the handoff",
-                code.any { (it as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
-                    ?.reference.toString().orEmpty().contains("->${handoff.name}(") },
-            )
-            // The stub's own parameters are the handoff's arguments, so the call has to start
-            // at the parameter block and pass all fifteen words through. The only slots the
-            // fill replaces are the options and the config. Building those in a parameter
-            // register once left the config in the viewmodel slot: copying a parameter into
-            // its own register is a no-op.
-            val base = stub.implementation!!.registerCount - 15
-            val call = code.filterIsInstance<RegisterRangeInstruction>().single { instruction ->
-                ((instruction as? ReferenceInstruction)?.reference?.toString().orEmpty())
-                    .contains("->${handoff.name}(")
-            }
-            assertEquals("$label: the $stubName call's first register", 0, call.startRegister)
-            assertEquals("$label: the $stubName call's width", 15, call.registerCount)
-            val prologueWrites = code.take(stub.parameterTypes.size)
-                .filterIsInstance<TwoRegisterInstruction>()
-                .map { it.registerA }
-            assertTrue(
-                "$label: the $stubName stub's parameter copies run into its parameters: " +
-                    "$prologueWrites (base $base)",
-                prologueWrites.all { it < base },
-            )
-            val builds = code.filter { it.opcode == Opcode.NEW_INSTANCE }.map {
-                (it as OneRegisterInstruction).registerA
-            }
-            assertTrue(
-                "$label: the $stubName stub builds objects in its parameters: $builds (base $base)",
-                builds.all { it < base },
-            )
-            val writes = code.drop(stub.parameterTypes.size).filter {
-                it.opcode == Opcode.MOVE_OBJECT || it.opcode == Opcode.MOVE_OBJECT_FROM16
-            }.map {
-                (it as TwoRegisterInstruction).registerA
-            }.toSet()
-            val ops = code.drop(stub.parameterTypes.size).map { instruction ->
-                instruction.opcode.name + ":" + (instruction as? TwoRegisterInstruction)?.registerA
-            }
-            assertEquals(
-                "$label: the $stubName stub writes registers other than the options and config " +
-                    "slots (post-prologue ops: $ops)",
-                setOf(2, 5),
-                writes,
-            )
-        }
-        val hooked = context.mutableClassDefBy(handoff.definingClass).methods.single {
-            it.name == handoff.name && it.parameterTypes == handoff.parameterTypes
-        }
-        assertTrue(
-            "$label: the handoff doesn't record its arguments",
-            hooked.implementation!!.instructions.first().let {
-                (it as? com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction)
-                    ?.reference.toString().orEmpty().contains("->captureArgs(")
             },
         )
     }

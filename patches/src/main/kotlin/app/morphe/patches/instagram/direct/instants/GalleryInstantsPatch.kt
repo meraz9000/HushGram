@@ -86,20 +86,27 @@ val galleryInstantsPatch = bytecodePatch(
     execute {
         requireStatusMethod("galleryInstants")
         hookCameraOpened()
-        hookStateReaders()
-        hookStateAccessor()
         val handoff = findCaptureHandoff()
-        fillContinuationStub(handoff)
-        fillPublishStub(handoff)
-        fillReplayStub(handoff)
-        hookCaptureArgs(handoff)
+        // The picked picture takes the recorded shutter callback, which exists on every
+        // supported build. The older builds also expose the capture call itself, and their
+        // publish/replay/file stubs are filled from it; 453's capture call gained a parameter
+        // and moved the audience config inside the viewmodel, so those legacy stubs stay
+        // unfilled there. They are never reached by the callback path.
+        if (handoff.parameterTypes.size == 14) {
+            hookStateReaders()
+            hookStateAccessor()
+            fillContinuationStub(handoff)
+            fillPublishStub(handoff)
+            fillReplayStub(handoff)
+            hookCaptureArgs(handoff)
+            val fileHandoff = findFileHandoff()
+            fillFileStub(fileHandoff)
+            val accessor = stateAccessor
+                ?: throw PatchException("Save button on instants: no state accessor")
+            fillStateStub(accessor)
+            fillStateSourceStub(handoff, accessor)
+        }
         hookCaptureCallback(findCaptureCallback())
-        val fileHandoff = findFileHandoff()
-        fillFileStub(fileHandoff)
-        val accessor = stateAccessor
-            ?: throw PatchException("Save button on instants: no state accessor")
-        fillStateStub(accessor)
-        fillStateSourceStub(handoff, accessor)
         enableStatus("galleryInstants")
     }
 }
@@ -112,17 +119,18 @@ private const val FIRE_AND_FORGET = "$EXTENSION_PACKAGE/download/FireAndForget;"
 
 /**
  * The camera's captured-picture handoff: the one static method of [CAMERA_VM] taking the
- * context and a Bitmap whose call the shutter makes, fourteen parameters wide. Its body derives
- * the camera state itself; the pieces it is given that a gallery pick has none of are passed
- * empty, which the experiment on the device checks.
+ * context and a Bitmap without a File, whose call the shutter makes. 452 has fourteen
+ * parameters; 453 has fifteen (it gained a second long stamp). Its body derives the camera
+ * state itself; the pieces a gallery pick has none of are passed empty.
  */
 internal fun BytecodePatchContext.findCaptureHandoff(): Method {
     val vm = classDefByOrNull(CAMERA_VM) ?: throw PatchException("Save button on instants: no $CAMERA_VM")
     val handoffs = vm.methods.filter { method ->
         AccessFlags.STATIC.isSet(method.accessFlags) &&
-            method.parameterTypes.size == 14 &&
+            method.parameterTypes.size in 14..15 &&
             method.parameterTypes.getOrNull(0)?.toString() == CONTEXT &&
-            method.parameterTypes.getOrNull(1)?.toString() == BITMAP
+            method.parameterTypes.getOrNull(1)?.toString() == BITMAP &&
+            method.parameterTypes.none { it.toString() == "Ljava/io/File;" }
     }
     return handoffs.singleOrNull() ?: throw PatchException(
         "Save button on instants: expected one capture handoff on $CAMERA_VM, found " +
@@ -131,18 +139,18 @@ internal fun BytecodePatchContext.findCaptureHandoff(): Method {
 }
 
 /**
- * The camera's file-based handoff: the other static method of [CAMERA_VM] taking the context
- * and a Bitmap, thirteen parameters wide, with a File, a Float and two ints where the frame
- * pipeline has its stamps. A picked picture exists as a file already, so this is the door it
- * should take.
+ * The camera's file-based handoff: the other static method of [CAMERA_VM] taking the context,
+ * a Bitmap and a File. 452 has thirteen parameters; 453 has fourteen. A picked picture exists
+ * as a file already, so this is the door it should take.
  */
 internal fun BytecodePatchContext.findFileHandoff(): Method {
     val vm = classDefByOrNull(CAMERA_VM) ?: throw PatchException("Save button on instants: no $CAMERA_VM")
     val handoffs = vm.methods.filter { method ->
         AccessFlags.STATIC.isSet(method.accessFlags) &&
-            method.parameterTypes.size == 13 &&
+            method.parameterTypes.size in 13..14 &&
             method.parameterTypes.getOrNull(0)?.toString() == CONTEXT &&
-            method.parameterTypes.getOrNull(1)?.toString() == BITMAP
+            method.parameterTypes.getOrNull(1)?.toString() == BITMAP &&
+            method.parameterTypes.any { it.toString() == "Ljava/io/File;" }
     }
     return handoffs.singleOrNull() ?: throw PatchException(
         "Save button on instants: expected one file handoff on $CAMERA_VM, found " +

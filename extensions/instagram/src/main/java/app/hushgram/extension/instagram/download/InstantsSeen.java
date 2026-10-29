@@ -69,10 +69,6 @@ public final class InstantsSeen {
 
     /** True while the eye button is running the kept reference. */
     private static volatile boolean force;
-    /** The seen-manager instances whose stale hard seen set was already cleared. */
-    private static final java.util.Set<Object> CLEARED_SEEN_MANAGERS =
-        java.util.Collections.synchronizedSet(
-            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()));
     /** The ids the eye button marked seen, waiting for the viewer's close to sync them. */
     private static final java.util.Set<String> EYE_IDS =
         java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<>());
@@ -185,7 +181,7 @@ public final class InstantsSeen {
                 return;
             }
             Object pending = field(manager, "A05");
-            Object flow = field(manager, "A06");
+            Object flow = field(manager, "A07");
             java.util.List<String> eye;
             synchronized (EYE_IDS) {
                 eye = new java.util.ArrayList<>(EYE_IDS);
@@ -203,15 +199,7 @@ public final class InstantsSeen {
                 }
             }
             java.util.LinkedHashSet<String> hard = new java.util.LinkedHashSet<>(eye);
-            if (flow != null) {
-                try {
-                    java.lang.reflect.Method set = flow.getClass().getMethod("HQ5", Object.class);
-                    set.setAccessible(true);
-                    set.invoke(flow, hard);
-                } catch (Throwable ignored) {
-                    // The manager's own state is already right when the eye's write landed.
-                }
-            }
+            setFlow(flow, hard);
             if (!eye.isEmpty()) {
                 dropFromTray(viewModel, new java.util.LinkedHashSet<>(eye));
             }
@@ -260,10 +248,21 @@ public final class InstantsSeen {
             if (id != null) {
                 String key = String.valueOf(id);
                 EYE_IDS.add(key);
-                dropFromTray(viewModel, java.util.Collections.singleton(key));
+                Object manager = field(viewModel, "A0Z");
+                if (manager != null) {
+                    viewerClose(manager, viewModel);
+                } else {
+                    dropFromTray(viewModel, java.util.Collections.singleton(key));
+                }
             }
             try {
-                viewModel.getClass().getMethod("A14").invoke(viewModel);
+                viewModel.getClass().getMethod("A13").invoke(viewModel);
+            } catch (NoSuchMethodException e) {
+                try {
+                    viewModel.getClass().getMethod("A14").invoke(viewModel);
+                } catch (Throwable t) {
+                    HookStatus.threw(FamilyNames.KEEP_INSTANTS, "long-press seen sync", t);
+                }
             } catch (Throwable t) {
                 HookStatus.threw(FamilyNames.KEEP_INSTANTS, "long-press seen sync", t);
             }
@@ -291,38 +290,34 @@ public final class InstantsSeen {
             if (viewModel == null || ids.isEmpty()) {
                 return;
             }
-            Object repository = field(viewModel, "A0A");
+            Object repository = field(viewModel, "A0V");
+            if (repository == null) {
+                repository = field(viewModel, "A0A");
+            }
             if (repository == null) {
                 return;
             }
-            Object flow = field(repository, "A0U");
-            if (flow != null) {
-                Object wrapper = flow.getClass().getMethod("getValue").invoke(flow);
-                if (wrapper != null) {
-                    Object state = withoutIds(field(wrapper, "A00"), ids);
-                    Object status = field(wrapper, "A01");
-                    Object replacement = null;
-                    for (java.lang.reflect.Constructor<?> constructor
-                        : wrapper.getClass().getDeclaredConstructors()) {
-                        if (constructor.getParameterTypes().length == 2) {
-                            constructor.setAccessible(true);
-                            replacement = constructor.newInstance(state, status);
-                            break;
-                        }
-                    }
-                    if (replacement != null) {
-                        java.lang.reflect.Method set =
-                            flow.getClass().getMethod("HQ5", Object.class);
-                        set.setAccessible(true);
-                        set.invoke(flow, replacement);
-                    }
+            Class<?> repositoryType = repository.getClass();
+            java.lang.reflect.Method remove = null;
+            for (String name : new String[] {"A06", "A05"}) {
+                try {
+                    remove = repositoryType.getDeclaredMethod(name, repositoryType, String.class);
+                    remove.setAccessible(true);
+                    break;
+                } catch (NoSuchMethodException ignored) {
+                    // Try the next remove helper.
                 }
             }
-            Object fetcher = field(repository, "A0H");
-            Object reference = fetcher == null ? null : field(fetcher, "A06");
-            if (reference instanceof java.util.concurrent.atomic.AtomicReference) {
-                ((java.util.concurrent.atomic.AtomicReference) reference).updateAndGet(
-                    old -> withoutIds(old, ids));
+            if (remove == null) {
+                HookStatus.threw(
+                    FamilyNames.KEEP_INSTANTS,
+                    "tray drop",
+                    new NoSuchMethodException(repositoryType.getName() + " has no tray remove")
+                );
+                return;
+            }
+            for (String id : ids) {
+                remove.invoke(null, repository, id);
             }
             Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
                 "tray dropped eye ids=" + ids.size());
@@ -374,6 +369,23 @@ public final class InstantsSeen {
         return state;
     }
 
+    /** Replaces the value of the seen flow, whichever setter this build exposes. */
+    private static void setFlow(@Nullable Object flow, Object value) {
+        if (flow == null) {
+            return;
+        }
+        for (String name : new String[] {"HUv", "HQ5", "setValue"}) {
+            try {
+                java.lang.reflect.Method set = flow.getClass().getMethod(name, Object.class);
+                set.setAccessible(true);
+                set.invoke(flow, value);
+                return;
+            } catch (Throwable ignored) {
+                // Try the next shape.
+            }
+        }
+    }
+
     /** The size of [collection], or 0 when it is null or not a collection. */
     private static int collectionSize(@Nullable Object collection) {
         return collection instanceof java.util.Collection
@@ -421,36 +433,6 @@ public final class InstantsSeen {
     }
 
     /**
-     * Maintenance decision for the seen manager's soft-seen pass. 0 runs it, 1 clears the stale
-     * hard seen set once and skips, 2 skips. With the switch on the soft seen set must never be
-     * merged, or the viewer's close would sync those ids into the repository and remove the
-     * instants from the tray. The eye button writes its own id through {@link #beforeSeenWrite},
-     * so the close still removes the one instant the eye marked.
-     */
-    public static int seenMaintenance(@Nullable Object manager) {
-        try {
-            if (!on() || manager == null) {
-                return 0;
-            }
-            if (!CLEARED_SEEN_MANAGERS.add(manager)) {
-                return 2;
-            }
-            String callers = callers();
-            Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () ->
-                "clearing the stale local seen set callers=" + callers);
-            return 1;
-        } catch (Throwable t) {
-            HookStatus.threw(FamilyNames.KEEP_INSTANTS, "seen maintenance", t);
-            return 0;
-        }
-    }
-
-    /** The empty set the stale seen state is replaced with. */
-    public static java.util.Set<?> emptySeenSet() {
-        return java.util.Collections.emptySet();
-    }
-
-    /**
      * Called with a bulk seen write's ids. With the switch on the list is not merged into the
      * hard seen set; the eye button's single id still goes through {@link #beforeSeenWrite}.
      */
@@ -488,7 +470,10 @@ public final class InstantsSeen {
             Object reference = field(fetcher, "A06");
             Object state = reference == null ? null
                 : reference.getClass().getMethod("get").invoke(reference);
-            Object list = state == null ? null : field(state, "A0B");
+            Object list = state == null ? null : field(state, "A0C");
+            if (list == null && state != null) {
+                list = field(state, "A0B");
+            }
             boolean keep = list instanceof java.util.Collection
                 && !((java.util.Collection<?>) list).isEmpty();
             String callers = callers();

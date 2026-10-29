@@ -659,8 +659,9 @@ class StoryRetryQueueTest {
 
     companion object {
         private val nativeProofInputs by lazy {
-            Fixtures.files { it.name == "instagram-453.0.0.55.79-385914283.apks" }
-                .map { StorySeenHookTest().fixtureClasses(it) }
+            Fixtures.files {
+                it.extension == "apks" && it.name.contains("-${Fixtures.VERSION}-")
+            }.map { StorySeenHookTest().fixtureClasses(it) }
         }
         private val otherNativeProofInputs by lazy {
             Fixtures.otherBuilds().map { it.parentFile.name to StorySeenHookTest().fixtureClasses(it) }

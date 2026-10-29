@@ -16,19 +16,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The code half on every build of Instagram 453.0.0.55.79. Each build names its own package by the same
+ * The code half on every build of Instagram 453.0.0.57.79. Each build names its own package by the same
  * uses, Redex's names aside, and every use that means the running app moves while the rest stay.
  */
 class CloneCodeTest {
     private val clone = "com.hush.second"
 
     /** The const-string loads of an authority each build has, and the loads of Instagram's package that stay. */
-    private val authorityLoads = mapOf(
-        "385914283" to 35, "385914282" to 35, "385914284" to 31, "385914285" to 35,
-    )
-    private val keptLoads = mapOf(
-        "385914283" to 85, "385914282" to 86, "385914284" to 86, "385914285" to 85,
-    )
+    private val authorityLoads = mapOf("385914557" to 35)
+    private val keptLoads = mapOf("385914557" to 86)
     private val uses = mapOf(
         SelfUse.INLINED to 4, SelfUse.PACKAGE_MANAGER to 6, SelfUse.OWN_INTENT to 9,
         SelfUse.NAME_CHECK to 6, SelfUse.CALLER_CHECK to 3, SelfUse.PROVIDER_OWNER to 4, SelfUse.RELEASE_AND_DEBUG to 5,
@@ -36,9 +32,7 @@ class CloneCodeTest {
     )
 
     /** Google Play's uses, the one count that differs by build: R8 keeps more or fewer of its helpers in each. */
-    private val googlePlayUses = mapOf(
-        "385914283" to 6, "385914282" to 7, "385914284" to 7, "385914285" to 6,
-    )
+    private val googlePlayUses = mapOf("385914557" to 6)
 
     /** The uses in classes Redex leaves named, the same in every build. 453 renames the Play billing classes, so theirs count among the LX/ ones. */
     private val namedUses = listOf(
@@ -59,7 +53,7 @@ class CloneCodeTest {
         assertEquals(authorityLoads.filterKeys { it in builds.keys }.keys, builds.keys)
         // Every build is checked before any failure is reported, so one run shows each build's counts.
         val failures = builds.mapNotNull { (build, file) ->
-            runCatching { checkBuild(build, file) }.exceptionOrNull()?.let { "[$build] ${it.message}" }
+            runCatching { checkBuild(build, file) }.exceptionOrNull()?.let { "[$build] ${it::class.java.simpleName}: ${it.message}" }
         }
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
@@ -67,7 +61,7 @@ class CloneCodeTest {
     private fun checkBuild(build: String, file: java.io.File) {
             val authorities = readCloneManifest(CloneFixtures.manifest(file)).authorities
             val classes = CloneFixtures.classes(file, authorities)
-            if (build == "385914283") {
+            if (build == "385914557") {
                 val withoutAnswer = PatchContexts.of(classes).planClone(clone, authorities)
                 val refusal = assertThrows(PatchException::class.java) { withoutAnswer.requireComplete() }
                 assertTrue(refusal.message, refusal.message!!.contains("OwnPackage.name()"))

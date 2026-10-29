@@ -199,6 +199,7 @@ class HideFeedFollowPatchTest {
     private val subscribeBuilds = mapOf(
         "385914282" to NativeSubscribe("LX/010I;", "A0o", "LX/00h3;", "LX/0SmP;", "LX/02UW;", 0x7f138132),
         "385914283" to NativeSubscribe("LX/0024;", "A0q", "LX/08iO;", "LX/0527;", "LX/01FK;", 0x7f138130),
+        "385914557" to NativeSubscribe("LX/0023;", "A0o", "LX/08iK;", "LX/0QkP;", "LX/01FK;", 0x7f138130),
         "385914284" to NativeSubscribe("LX/0096;", "A0o", "LX/08iY;", "LX/0SjX;", "LX/01GQ;", 0x7f138132),
         "385914285" to NativeSubscribe("LX/0024;", "A0q", "LX/08iN;", "LX/0526;", "LX/01FK;", 0x7f138130),
     )

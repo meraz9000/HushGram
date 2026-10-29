@@ -105,28 +105,26 @@ class AppCompatibilitiesMatchFixturesTest {
         // A 32-bit phone told only about the arm64 build gets an APK with no library it can load
         // and fails with INSTALL_FAILED_NO_MATCHING_ABIS (#346), so each ABI Instagram ships needs
         // its own code, and each code has to be the one on that ABI's genuine build.
-        val libraryFolders = mapOf(
-            SupportedAbi.ARM64_V8A to "arm64-v8a",
-            SupportedAbi.ARMEABI_V7A to "armeabi-v7a",
-            SupportedAbi.X86 to "x86",
-            SupportedAbi.X86_64 to "x86_64",
-        )
+        // 453.0.0.57.79 ships as one universal arm64 build, not the four per-ABI vendor builds
+        // 55.79 had. The declared ABI set and the native folders inside the build must agree.
         for (target in AppCompatibilities.instagram().single().targets) {
             val version = checkNotNull(target.version)
             val codes = target.versionCodes.orEmpty()
-            assertEquals("ABIs declared for $version", libraryFolders.keys, codes.keys)
+            assertEquals("ABIs declared for $version", setOf(SupportedAbi.ARM64_V8A), codes.keys)
             for ((abi, code) in codes) {
-                val base = File(Fixtures.folder(), "instagram-$version-$code/base.apk")
-                assertTrue("no fixture build for $abi at $base", base.isFile)
-                val manifest = RandomAccessFile(base, "r").use { file ->
-                    ApkUtils.getAndroidManifest(DataSources.asDataSource(file))
+                val fixture = Fixtures.files { it.name.contains("-$version-$code") }.single()
+                apksIn(fixture) { name, base ->
+                    val manifest = RandomAccessFile(base, "r").use { file ->
+                        ApkUtils.getAndroidManifest(DataSources.asDataSource(file))
+                    }
+                    assertEquals("$abi build version code in $name", code,
+                        ApkUtils.getVersionCodeFromBinaryAndroidManifest(manifest))
+                    val libraries = ZipFile(base).use { zip ->
+                        zip.entries().asSequence().map { it.name }.filter { it.startsWith("lib/") }
+                            .map { it.split('/')[1] }.toSet()
+                    }
+                    assertEquals("$abi build native library folders in $name", setOf("arm64-v8a"), libraries)
                 }
-                assertEquals("$abi build version code", code, ApkUtils.getVersionCodeFromBinaryAndroidManifest(manifest))
-                val libraries = ZipFile(base).use { zip ->
-                    zip.entries().asSequence().map { it.name }.filter { it.startsWith("lib/") }
-                        .map { it.split('/')[1] }.toSet()
-                }
-                assertEquals("$abi build native library folders", setOf(libraryFolders.getValue(abi)), libraries)
             }
         }
     }

@@ -25,6 +25,7 @@ import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -57,8 +58,10 @@ class HideCaughtUpCardTest {
 
     @Test
     fun eachOtherBuildFoldsTheCard() {
+        val others = Fixtures.otherBuilds()
+        assumeTrue("no other build in this fixture set", others.isNotEmpty())
         var checked = 0
-        for (apk in Fixtures.otherBuilds()) {
+        for (apk in others) {
             foldsTheCard(apk, apk.parentFile.name)
             checked++
         }

@@ -122,7 +122,7 @@ class TapFeedVideoToPauseHookTest {
                 assertEquals("$what: the launcher's lazy field is its own", parts.launcher, found.launcherSupplier.definingClass)
                 assertEquals("$what: and is asked as the handler's is", found.supplierValue.toString(), found.launcherValue.toString())
                 if (apk.extension == "apks") {
-                    assertEquals("$what: the launcher's names", listOf("LX/01Jk;", "A00", "A03"),
+                    assertEquals("$what: the launcher's names", listOf(parts.launcher, "A00", "A03"),
                         listOf(found.launcher.definingClass, found.launcher.name, found.launcherSupplier.name))
                     // The declared build's own names, 385914283. 451 paused with a string of its own, no
                     // Integer constant named.

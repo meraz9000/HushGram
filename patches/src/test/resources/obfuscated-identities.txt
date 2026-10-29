@@ -14,16 +14,12 @@ extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/Ins
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0A
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0B
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0C
-extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0H
-extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0U
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A00
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A01
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A02
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A03
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A04
 patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A05
-patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A06
-patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A0C
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A02
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A03
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A04
@@ -32,3 +28,11 @@ extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/Ins
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A09
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A14
 extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A16
+
+# 453 remap: the viewer close (A13), seen manager fields (A0V/A0Z) and 453 API name (A0D).
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0V
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A0Z
+extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java|A13
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A07
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A0D
+patches/src/main/kotlin/app/morphe/patches/instagram/direct/instants/KeepInstantsUnseenPatch.kt|A13

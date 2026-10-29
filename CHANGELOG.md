@@ -6,6 +6,7 @@ Every HushGram release, newest first.
 
 ### Features
 
+* **Instagram:** HushGram now patches Instagram 453.0.0.57.79 instead of 453.0.0.55.79. Get APKMirror's arm64-v8a build `385914557`. The 57.79 release is one universal arm64 APK; the separate 55.79 per-ABI builds are no longer declared. All 126 patches, including the Instants additions, apply to it.
 * **Instagram - Keep instants unseen:** new patch, kept out of simple mode. Viewed instants stay unseen until you tap the eye button, which marks that one as seen; tapping to advance still moves to the next instant. Starts off. Turn it on in HushGram settings > Messages.
 * **Instagram - Add photos from the gallery to instants:** new patch, kept out of simple mode. A gallery button on the Instants camera opens the system photo picker. After one normal Instants photo, the picked picture opens in a square framing view; frame it, tap Save, and it runs through the camera's own capture callback, so the instant preview opens ready to send. Starts off. Turn it on in HushGram settings > Messages.
 * **Instagram - Save button on stories and instants:** new patch, kept out of simple mode. A switch under Messages saves the instant you hold, marks it seen, and moves to the next instant, while stories keep a Save button in the reply bar. A save puts that one photo or video in your gallery, the way Download saves a reel. Nothing saves unless you hold or tap. Asked for in testing the Instants feed.

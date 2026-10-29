@@ -29,6 +29,7 @@ private const val PATCH = "Keep instants unseen"
 private const val USER_SESSION = "Lcom/instagram/common/session/UserSession;"
 private const val SEEN_API = "Lcom/instagram/quicksnap/data/api/QuickSnapApi;"
 private const val FETCHER = "Lcom/instagram/quicksnap/data/repository/QuickSnapFetcher;"
+private const val VIEW_MODEL = "Lcom/instagram/quicksnap/viewer/viewmodel/QuickSnapConsumptionViewModel;"
 
 internal const val INSTANTS_SEEN = "$EXTENSION_PACKAGE/download/InstantsSeen;"
 internal const val ON_SEEN_VIEW = "$INSTANTS_SEEN->onView(Ljava/lang/Object;)V"
@@ -45,8 +46,6 @@ internal const val VIEWER_CLOSE =
     "$INSTANTS_SEEN->viewerClose(Ljava/lang/Object;Ljava/lang/Object;)V"
 internal const val FETCHER_STATE =
     "$INSTANTS_SEEN->fetcherState(Ljava/lang/Object;)Ljava/lang/Object;"
-internal const val SEEN_MAINTENANCE = "$INSTANTS_SEEN->seenMaintenance(Ljava/lang/Object;)I"
-internal const val EMPTY_SEEN = "$INSTANTS_SEEN->emptySeenSet()Ljava/util/Set;"
 internal const val BEFORE_SEEN_LIST = "$INSTANTS_SEEN->beforeSeenList(Ljava/util/List;)Z"
 internal const val FETCH_DECISION = "$INSTANTS_SEEN->fetchDecision(Ljava/lang/Object;)I"
 
@@ -84,7 +83,7 @@ val keepInstantsUnseenPatch = bytecodePatch(
         hookConsumption(findConsumptionReference())
         val manager = findSeenManager()
         hookSeenWrite(manager)
-        hookSeenManagerMaintenance(manager)
+        hookBulkSeen(manager)
         hookSeenRequest()
         hookFetcherSeen()
         hookViewerClose()
@@ -149,14 +148,20 @@ internal fun BytecodePatchContext.findSeenManager(): ClassDef {
                 method.returnType == classDef.type
         }
         val writesOne = classDef.methods.any { method ->
-            method.name == "A04" &&
+            method.name == "A03" &&
                 method.parameterTypes.map(Any::toString) == listOf("Ljava/lang/String;") &&
                 method.returnType == "V"
         }
-        val state = classDef.fields.any { it.type == "Ljava/util/Set;" } &&
-            classDef.methods.any { it.name == "A02" && it.parameterTypes.isEmpty() && it.returnType == "V" } &&
-            classDef.methods.any { it.name == "A03" && it.parameterTypes.isEmpty() && it.returnType == "V" }
-        if (createsSelf && writesOne && state) {
+        val writesMany = classDef.methods.any { method ->
+            method.name == "A04" &&
+                method.parameterTypes.map(Any::toString) == listOf("Ljava/util/List;") &&
+                method.returnType == "V"
+        }
+        val state = classDef.fields.any { it.name == "A05" && it.type == "Ljava/util/Set;" } &&
+            classDef.fields.any { it.name == "A07" } &&
+            classDef.methods.any { it.name == "A01" && it.parameterTypes.isEmpty() && it.returnType == "V" } &&
+            classDef.methods.any { it.name == "A02" && it.parameterTypes.isEmpty() && it.returnType == "V" }
+        if (createsSelf && writesOne && writesMany && state) {
             found += classDef
         }
     }
@@ -169,7 +174,7 @@ internal fun BytecodePatchContext.findSeenManager(): ClassDef {
 /** Skips the manager's seen write while the switch is on, unless the eye button is forcing it. */
 internal fun BytecodePatchContext.hookSeenWrite(manager: ClassDef) {
     val write = manager.methods.singleOrNull {
-        it.name == "A04" &&
+        it.name == "A03" &&
             it.parameterTypes.map(Any::toString) == listOf("Ljava/lang/String;") &&
             it.returnType == "V"
     } ?: throw PatchException("$PATCH: ${manager.type} has no single-id seen write")
@@ -193,55 +198,20 @@ internal fun BytecodePatchContext.hookSeenWrite(manager: ClassDef) {
 }
 
 /**
- * Clears the stale hard seen set once and blocks the soft/bulk seen merges. The viewer's close
- * syncs whatever is in that set into the repository (`C07PZ.A14`); stale ids from earlier
- * builds otherwise remove the instants locally even though the server still has them unseen.
- * The eye button writes its own id through `beforeSeenWrite`, so the close removes only that.
+ * Blocks the seen manager's bulk seen write while the switch is on, so a batch heard from
+ * Instagram cannot mark the kept instants seen. The eye button writes its own id through the
+ * single seen method (`beforeSeenWrite`), which this hook leaves alone.
  */
-internal fun BytecodePatchContext.hookSeenManagerMaintenance(manager: ClassDef) {
-    val soft = manager.methods.singleOrNull {
-        it.name == "A02" && it.parameterTypes.isEmpty() && it.returnType == "V"
-    } ?: throw PatchException("$PATCH: ${manager.type} has no soft seen pass")
-    val list = manager.methods.singleOrNull {
-        it.name == "A05" && it.parameterTypes.map(Any::toString) == listOf("Ljava/util/List;") &&
+internal fun BytecodePatchContext.hookBulkSeen(manager: ClassDef) {
+    val bulk = manager.methods.singleOrNull {
+        it.name == "A04" && it.parameterTypes.map(Any::toString) == listOf("Ljava/util/List;") &&
             it.returnType == "V"
     } ?: throw PatchException("$PATCH: ${manager.type} has no bulk seen write")
-    val state = manager.fields.singleOrNull { it.name == "A06" }
-        ?: throw PatchException("$PATCH: ${manager.type} has no seen set")
-    val persist = manager.methods.singleOrNull {
-        it.name == "A01" && it.parameterTypes.isEmpty() && it.returnType == "V"
-    } ?: throw PatchException("$PATCH: ${manager.type} has no seen persist")
-
-    val softMutable = mutableClassDefBy(manager.type).methods.single {
-        it.name == soft.name && it.parameterTypes == soft.parameterTypes &&
-            it.returnType == soft.returnType
+    val mutable = mutableClassDefBy(manager.type).methods.single {
+        it.name == bulk.name && it.parameterTypes == bulk.parameterTypes &&
+            it.returnType == bulk.returnType
     }
-    softMutable.addInstructionsWithLabels(
-        0,
-        """
-            move-object/from16 v1, p0
-            invoke-static {v1}, $SEEN_MAINTENANCE
-            move-result v0
-            if-eqz v0, :run
-            const/4 v1, 0x1
-            if-ne v0, v1, :clear
-            return-void
-            :clear
-            iget-object v0, p0, ${manager.type}->${state.name}:${state.type}
-            invoke-static {}, $EMPTY_SEEN
-            move-result-object v1
-            invoke-interface {v0, v1}, ${state.type}->HQ5(Ljava/lang/Object;)V
-            invoke-direct {p0}, ${manager.type}->${persist.name}()V
-            return-void
-        """,
-        ExternalLabel("run", softMutable.implementation!!.instructions.first()),
-    )
-
-    val listMutable = mutableClassDefBy(manager.type).methods.single {
-        it.name == list.name && it.parameterTypes == list.parameterTypes &&
-            it.returnType == list.returnType
-    }
-    listMutable.addInstructionsWithLabels(
+    mutable.addInstructionsWithLabels(
         0,
         """
             move-object/from16 v0, p1
@@ -250,76 +220,40 @@ internal fun BytecodePatchContext.hookSeenManagerMaintenance(manager: ClassDef) 
             if-eqz v0, :run
             return-void
         """,
-        ExternalLabel("run", listMutable.implementation!!.instructions.first()),
+        ExternalLabel("run", mutable.implementation!!.instructions.first()),
     )
 }
 
 /**
- * Adjusts the seen manager's pending ids just before the viewer host commits them on close.
- *
- * <p>The host's `onDestroy` reads the manager (`A0E`), then its pending set (`A05`), moves those
- * ids into the hard set and calls `A14`. That inline commit bypasses every method hook, which is
- * why viewed instants still vanished on exit. The hook runs after the manager is loaded and
- * before the pending read: `viewerClose` empties it, or fills it with the eye's ids only, so the
- * host's commit becomes a no-op for viewed instants and a normal local+server sync for the eye.
+ * Hooks the viewer's close sync. On 453 the viewer viewmodel's `A13()` persists the seen set
+ * and hands its ids to `QuickSnapRepository.A07`, which both marks them on the server and
+ * removes them from the tray. That path is the one that dropped viewed instants on exit.
+ * The hook runs before `A13` reads the set: `viewerClose` empties it for viewed-only, or fills
+ * it with the eye's ids so only the eye's instant is synced.
  */
 internal fun BytecodePatchContext.hookViewerClose() {
     val manager = findSeenManager()
-    val pending = manager.fields.singleOrNull { it.name == "A05" }
-        ?: throw PatchException("$PATCH: ${manager.type} has no pending seen set")
-    val found = mutableListOf<Pair<ClassDef, Method>>()
-    classDefForEach { classDef ->
-        for (method in classDef.methods) {
-            if (method.name != "onDestroy" || method.parameterTypes.isNotEmpty() ||
-                method.returnType != "V" || method.implementation == null) {
-                continue
-            }
-            val reads = method.implementation!!.instructions.any { instruction ->
-                if (instruction.opcode != Opcode.IGET_OBJECT) {
-                    return@any false
-                }
-                val field = (instruction as? ReferenceInstruction)?.reference as? FieldReference
-                field != null && field.definingClass == manager.type && field.name == pending.name
-            }
-            if (reads) {
-                found += classDef to method
-            }
-        }
+    val viewModel = classDefByOrNull(VIEW_MODEL)
+        ?: throw PatchException("$PATCH: $VIEW_MODEL is gone")
+    val close = viewModel.methods.singleOrNull {
+        it.name == "A13" && it.parameterTypes.isEmpty() && it.returnType == "V"
+    } ?: throw PatchException("$PATCH: $VIEW_MODEL has no close sync")
+    val managerField = viewModel.fields.singleOrNull { it.type == manager.type }
+        ?: throw PatchException("$PATCH: $VIEW_MODEL has no seen manager field")
+    val mutable = mutableClassDefBy(viewModel.type).methods.single {
+        it.name == close.name && it.parameterTypes == close.parameterTypes &&
+            it.returnType == close.returnType
     }
-    val (host, method) = found.singleOrNull() ?: throw PatchException(
-        "$PATCH: expected one viewer host that commits the pending seen set, found ${found.size}",
-    )
-    val mutable = mutableClassDefBy(host.type).methods.single {
-        it.name == method.name && it.parameterTypes == method.parameterTypes &&
-            it.returnType == method.returnType
-    }
-    val instructions = mutable.implementation!!.instructions.toList()
-    val index = instructions.indexOfFirst { instruction ->
-        if (instruction.opcode != Opcode.IGET_OBJECT) {
-            return@indexOfFirst false
-        }
-        val field = (instruction as? ReferenceInstruction)?.reference as? FieldReference
-        field != null && field.definingClass == manager.type && field.name == pending.name
-    }
-    if (index < 0) throw PatchException("$PATCH: ${host.type} lost its pending seen read")
-    val managerRegister = (instructions[index] as? TwoRegisterInstruction)?.registerB
-        ?: throw PatchException("$PATCH: ${host.type} pending seen read has no manager register")
-    val load = (index - 1 downTo 0).firstOrNull { candidate ->
-        val instruction = instructions[candidate]
-        val destination = (instruction as? TwoRegisterInstruction)?.registerA
-        val field = (instruction as? ReferenceInstruction)?.reference as? FieldReference
-        instruction.opcode == Opcode.IGET_OBJECT && destination == managerRegister &&
-            field?.type?.toString() == manager.type
-    } ?: throw PatchException("$PATCH: ${host.type} never loads the seen manager")
-    val viewModelRegister = (instructions[load] as TwoRegisterInstruction).registerB
-    if (managerRegister > 15 || viewModelRegister > 15) {
-        throw PatchException(
-            "$PATCH: ${host.type} close hook needs v$viewModelRegister and v$managerRegister",
-        )
+    if (mutable.implementation!!.registerCount < 2) {
+        throw PatchException("$PATCH: $VIEW_MODEL close sync has too few registers")
     }
     mutable.addInstructions(
-        index,
-        "invoke-static {v$managerRegister, v$viewModelRegister}, $VIEWER_CLOSE",
+        0,
+        """
+            move-object/from16 v0, p0
+            iget-object v1, v0, ${viewModel.type}->${managerField.name}:${managerField.type}
+            invoke-static {v1, v0}, $VIEWER_CLOSE
+        """,
     )
 }
 
@@ -338,7 +272,7 @@ internal fun BytecodePatchContext.hookViewerClose() {
 internal fun BytecodePatchContext.hookFetcherFetch() {
     val fetcher = classDefByOrNull(FETCHER) ?: throw PatchException("$PATCH: $FETCHER is gone")
     val fetch = fetcher.methods.singleOrNull {
-        it.name == "A03" && it.parameterTypes.size == 5 &&
+        it.name == "A02" && it.parameterTypes.size == 5 &&
             it.returnType == "Ljava/lang/Object;"
     } ?: throw PatchException("$PATCH: $FETCHER has no fetch call")
     val mutable = mutableClassDefBy(fetcher.type).methods.single {
@@ -354,7 +288,7 @@ internal fun BytecodePatchContext.hookFetcherFetch() {
         field != null && field.definingClass.toString() == FETCHER && field.name == "A01"
     }
     if (flagIndex < 0) throw PatchException("$PATCH: $FETCHER has no fetch-in-progress flag read")
-    if (mutable.implementation!!.registerCount < 12) {
+    if (mutable.implementation!!.registerCount < 14) {
         throw PatchException("$PATCH: $FETCHER fetch call has too few registers")
     }
     val field = (instructions[flagIndex] as ReferenceInstruction).reference as FieldReference
@@ -390,7 +324,7 @@ internal fun BytecodePatchContext.hookFetcherFetch() {
 internal fun BytecodePatchContext.hookSeenRequest() {
     val api = classDefByOrNull(SEEN_API) ?: throw PatchException("$PATCH: $SEEN_API is gone")
     val method = api.methods.singleOrNull {
-        it.name == "A0C" && it.parameterTypes.size == 2 &&
+        it.name == "A0D" && it.parameterTypes.size == 2 &&
             it.parameterTypes[0].toString() == "Ljava/util/List;" &&
             it.returnType == "Ljava/lang/Object;"
     } ?: throw PatchException("$PATCH: $SEEN_API has no seen request")
@@ -418,7 +352,7 @@ internal fun BytecodePatchContext.hookSeenRequest() {
 internal fun BytecodePatchContext.hookFetcherSeen() {
     val fetcher = classDefByOrNull(FETCHER) ?: throw PatchException("$PATCH: $FETCHER is gone")
     val method = fetcher.methods.singleOrNull {
-        it.name == "A04" && it.parameterTypes.size == 2 &&
+        it.name == "A03" && it.parameterTypes.size == 2 &&
             it.parameterTypes[0].toString() == "Ljava/util/List;" &&
             it.returnType == "Ljava/lang/Object;"
     } ?: throw PatchException("$PATCH: $FETCHER has no bulk seen call")
