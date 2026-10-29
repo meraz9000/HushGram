@@ -34,6 +34,7 @@ final class AboutCategory {
     static void add(HushgramPreferenceFragment page, PreferenceScreen screen, Context context, Set<PatchFamily> build) {
         PreferenceCategory about = category(screen, L10n.t("About"), SettingsIcons.ABOUT,
                 L10n.t("Your version, the source code and licenses."));
+        page.about = about;
         about.addPreference(mark(info(context, L10n.t("Version"), L10n.f("HushGram %1$s on Instagram %2$s",
                 L10n.isolate(Utils.getPatchesReleaseVersion()), L10n.isolate(Utils.getAppVersionName()))
                 + "\n" + L10n.isolate(Utils.getSourceBuildIdentity())), SettingsIcons.ABOUT));

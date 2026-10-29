@@ -92,7 +92,7 @@ if (-not (Test-Path -LiteralPath $Apk -PathType Leaf)) { throw "APK not found: $
 if (-not (Test-Path -LiteralPath $DesktopJar -PathType Leaf)) { throw "Desktop CLI jar not found: $DesktopJar" }
 
 try {
-    $catalog = Get-Content -LiteralPath $PatchList -Raw | ConvertFrom-Json
+    $catalog = ConvertFrom-PatchJson (Get-Content -LiteralPath $PatchList -Raw)
     $split = Split-SecondAppPatches -PatchList $catalog
     $names = @($split.SameApp)
     $secondAppNames = @($split.SecondApp)
@@ -186,7 +186,7 @@ try {
 
     $report = $null
     if (Test-Path -LiteralPath $result -PathType Leaf) {
-        try { $report = Get-Content -LiteralPath $result -Raw | ConvertFrom-Json }
+        try { $report = ConvertFrom-PatchJson (Get-Content -LiteralPath $result -Raw) }
         catch { Write-Warning "Could not parse result JSON: $($_.Exception.Message)" }
     }
     $validation = Test-PatchingReport -Report $report -ExpectedNames $names `
@@ -228,8 +228,11 @@ try {
         if ($coverageVerdict.Reason) { Write-Warning $coverageVerdict.Reason }
         Write-Host "[verify] coverage report: $coveragePath"
         # What patching did to the manifest, against the APK the CLI patched, held to the allowlist.
+        $inputManifest = Get-ApkManifestFacts -Apk $patchInput -Aapt2 $Aapt2
+        $outputManifest = Get-ApkManifestFacts -Apk $out -Aapt2 $Aapt2
+        Assert-HushgramRuntimeFloor -Manifest $outputManifest -Stock $stock
         $manifestChanges = @(ConvertTo-ManifestDeltaEntries -Delta (Get-ManifestDelta `
-            -Stock (Get-ApkManifestFacts -Apk $patchInput -Aapt2 $Aapt2) -Patched (Get-ApkManifestFacts -Apk $out -Aapt2 $Aapt2)))
+            -Stock $inputManifest -Patched $outputManifest))
         $approvedChanges = @(Read-ManifestDeltaAllowlist -Path (Join-Path $PSScriptRoot 'manifest-delta-allowlist.txt') |
             Where-Object { $_ })
         $unapprovedChanges = @($manifestChanges | Where-Object { $approvedChanges -cnotcontains $_ })
@@ -241,7 +244,9 @@ try {
         # Every patch is applied here, so each approved change is one this run should have made. One
         # left out means the patch that makes it no longer does, which the patch's own status row
         # can't show: that comes from its bytecode half.
-        $unmade = @($approvedChanges | Where-Object { $manifestChanges -cnotcontains $_ })
+        # The SDK change is conditional: an input already at API 28 needs no change, but the
+        # paired assertion above still proves its exact output floor.
+        $unmade = @($approvedChanges | Where-Object { $_ -cne 'min-sdk 28' -and $manifestChanges -cnotcontains $_ })
         if ($unmade.Count -gt 0) { Write-Host "[verify] approved but not made: $($unmade -join ', ')" }
     }
     if ($cliExitCode -eq 0 -and $validation.Valid -and ($unapprovedChanges.Count -gt 0 -or $unmade.Count -gt 0)) {
@@ -322,7 +327,7 @@ try {
         }
         $secondReport = $null
         if (Test-Path -LiteralPath $secondResult -PathType Leaf) {
-            try { $secondReport = Get-Content -LiteralPath $secondResult -Raw | ConvertFrom-Json }
+            try { $secondReport = ConvertFrom-PatchJson (Get-Content -LiteralPath $secondResult -Raw) }
             catch { Write-Warning "Could not parse the second app's result JSON: $($_.Exception.Message)" }
         }
         $secondValidation = Test-PatchingReport -Report $secondReport -ExpectedNames $secondAppNames `

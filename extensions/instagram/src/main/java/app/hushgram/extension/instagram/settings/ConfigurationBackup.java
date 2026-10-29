@@ -13,8 +13,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import org.json.JSONException;
@@ -26,6 +29,7 @@ import app.hushgram.extension.instagram.download.FileNameTemplate;
 import app.hushgram.extension.instagram.download.SaveFolder;
 import app.hushgram.extension.instagram.direct.MessageBox;
 import app.hushgram.extension.instagram.profile.ProfileTabs;
+import app.hushgram.extension.instagram.misc.SettingsRows;
 import app.hushgram.extension.instagram.misc.SpoofLocation;
 import app.hushgram.extension.instagram.reels.TabOrder;
 import app.hushgram.extension.instagram.share.ShareSheetActions;
@@ -41,11 +45,11 @@ public final class ConfigurationBackup {
     public static final int MAX_BYTES = 256 * 1024;
     public static final int MAX_ENTRIES = 512;
     public static final long UNDO_WINDOW_MS = 10_000;
-    /** The longest text a file may set. The longest real one, a sharing domain, is 253. */
+    /** The ordinary text bound. Selection and blocked-word lists have the larger bound below. */
     static final int MAX_TEXT = 256;
     /**
-     * The longest list of blocked words, which its row also holds to: the longest text the file's
-     * reader takes, so a list that's saved always comes back.
+     * The bounded reader's longest string, also used by blocked words and native settings-row
+     * selections. The current native row ids join to 2,953 characters.
      */
     static final int MAX_WORDS_TEXT = 4096;
     private static final SettingsJson.Limits LIMITS =
@@ -57,6 +61,17 @@ public final class ConfigurationBackup {
     private static long undoId;
 
     private ConfigurationBackup() {}
+
+    /** The suggested document name, with optional local time in safe, locale-independent digits. */
+    static String fileName(Date when, boolean dated) {
+        return "HushGram-settings" + (dated
+                ? "-" + new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(when) : "") + ".json";
+    }
+
+    /** The page no longer permits a queued change. Nothing was written or consumed. */
+    public static final class Held extends IOException {
+        private Held() { super("The settings change is no longer permitted"); }
+    }
 
     /** Counts are safe for feedback. Neither keys nor values reach a report. */
     public static final class Result {
@@ -94,6 +109,8 @@ public final class ConfigurationBackup {
             settings.put(Settings.STORY_RING_COLOR.key, Settings.STORY_RING_COLOR);
         }
         if (PatchFamily.ROUNDED_POST_CORNERS.inBuild()) settings.put(Settings.ROUNDED_CORNER_SIZE.key, Settings.ROUNDED_CORNER_SIZE);
+        if (PatchFamily.STORY_PROGRESS_BAR.inBuild()) settings.put(Settings.STORY_BAR_THICKNESS.key, Settings.STORY_BAR_THICKNESS);
+        if (PatchFamily.STORIES_TRAY.inBuild()) settings.put(Settings.TRAY_BADGE.key, Settings.TRAY_BADGE);
         if (PatchFamily.SPOOF_LOCATION.inBuild()) settings.put(Settings.SPOOF_LOCATION_PLACE.key, Settings.SPOOF_LOCATION_PLACE);
         if (PatchFamily.CAPTION_WORD_REELS.inBuild()) settings.put(Settings.REELS_BLOCKED_WORDS.key, Settings.REELS_BLOCKED_WORDS);
         if (PatchFamily.SANITIZE_SHARING_LINKS.inBuild()) settings.put(Settings.SHARING_DOMAIN.key, Settings.SHARING_DOMAIN);
@@ -113,6 +130,7 @@ public final class ConfigurationBackup {
             settings.put(Settings.TAP_TO_PLAY_AUTO_SCROLL_WAITS.key, Settings.TAP_TO_PLAY_AUTO_SCROLL_WAITS);
         }
         if (PatchFamily.REEL_TAP_AND_VOLUME.inBuild()) settings.put(Settings.REEL_TAP_CHOICE.key, Settings.REEL_TAP_CHOICE);
+        if (PatchFamily.REEL_SCROLLING.inBuild()) settings.put(Settings.SCROLL_BREAK.key, Settings.SCROLL_BREAK);
         if (PatchFamily.REEL_DECLUTTER.inBuild()) {
             settings.put(Settings.BURN_IN_GUARD.key, Settings.BURN_IN_GUARD);
             settings.put(Settings.BURN_IN_WAIT.key, Settings.BURN_IN_WAIT);
@@ -123,16 +141,21 @@ public final class ConfigurationBackup {
             settings.put(Settings.GHOST_TAB_TARGET.key, Settings.GHOST_TAB_TARGET);
         }
         if (PatchFamily.MESSAGE_BOX.inBuild()) settings.put(Settings.HIDDEN_MESSAGE_BOX_BUTTONS.key, Settings.HIDDEN_MESSAGE_BOX_BUTTONS);
-        if (PatchFamily.PROFILE_TABS.inBuild()) settings.put(Settings.HIDDEN_PROFILE_TABS.key, Settings.HIDDEN_PROFILE_TABS);
+        if (PatchFamily.PROFILE_TABS.inBuild()) {
+            settings.put(Settings.HIDDEN_OWN_PROFILE_TABS.key, Settings.HIDDEN_OWN_PROFILE_TABS);
+            settings.put(Settings.HIDDEN_PROFILE_TABS.key, Settings.HIDDEN_PROFILE_TABS);
+        }
         if (PatchFamily.STORY_TIME.inBuild()) settings.put(Settings.STORY_TIME_MODE.key, Settings.STORY_TIME_MODE);
         if (PatchFamily.FRIENDSHIP_STATUS.inBuild()) settings.put(Settings.FOLLOW_LABEL_PLACE.key, Settings.FOLLOW_LABEL_PLACE);
         if (PatchFamily.FULL_SCREEN_BARS.inBuild()) settings.put(Settings.FULL_SCREEN_HIDES.key, Settings.FULL_SCREEN_HIDES);
+        if (PatchFamily.TAB_BAR_LAYOUT.inBuild()) settings.put(Settings.TAB_BAR_LAYOUT.key, Settings.TAB_BAR_LAYOUT);
         if (PatchFamily.REELS_TAB.inBuild()) {
             settings.put(Settings.START_TAB.key, Settings.START_TAB);
             settings.put(Settings.TAB_ORDER.key, Settings.TAB_ORDER);
         }
         if (PatchFamily.GLASS_TAB_BAR.inBuild()) {
             settings.put(Settings.GLASS_TAB_BAR_HAPTIC_STYLE.key, Settings.GLASS_TAB_BAR_HAPTIC_STYLE);
+            settings.put(Settings.GLASS_TAB_BAR_BLUR_STRENGTH.key, Settings.GLASS_TAB_BAR_BLUR_STRENGTH);
             settings.put(Settings.GLASS_TAB_BAR_OPACITY.key, Settings.GLASS_TAB_BAR_OPACITY);
             settings.put(Settings.GLASS_TAB_BAR_HEIGHT.key, Settings.GLASS_TAB_BAR_HEIGHT);
             settings.put(Settings.GLASS_TAB_BAR_CORNERS.key, Settings.GLASS_TAB_BAR_CORNERS);
@@ -144,6 +167,8 @@ public final class ConfigurationBackup {
         }
         if (PatchFamily.ACCENT_COLOR.inBuild()) settings.put(Settings.ACCENT_HUE.key, Settings.ACCENT_HUE);
         if (PatchFamily.FONT.inBuild()) settings.put(Settings.FONT.key, Settings.FONT);
+        if (PatchFamily.APP_ICON.inBuild()) settings.put(Settings.APP_ICON.key, Settings.APP_ICON);
+        if (PatchFamily.SETTINGS_ROWS.inBuild()) settings.put(Settings.HIDDEN_SETTINGS_ROWS.key, Settings.HIDDEN_SETTINGS_ROWS);
         if (PatchFamily.REEL_DOWNLOAD.inBuild()) {
             settings.put(Settings.DOWNLOAD_REEL_COVER.key, Settings.DOWNLOAD_REEL_COVER);
             settings.put(Settings.DOWNLOAD_REEL_AUDIO.key, Settings.DOWNLOAD_REEL_AUDIO);
@@ -189,6 +214,8 @@ public final class ConfigurationBackup {
         settings.put(Settings.SETTINGS_SHORTCUT.key, Settings.SETTINGS_SHORTCUT);
         settings.put(Settings.SETTINGS_LOGO_PRESS.key, Settings.SETTINGS_LOGO_PRESS);
         settings.put(Settings.CATEGORY_PAGES.key, Settings.CATEGORY_PAGES);
+        settings.put(Settings.DESCRIPTIONS_BEHIND_INFO.key, Settings.DESCRIPTIONS_BEHIND_INFO);
+        settings.put(Settings.DATE_SETTINGS_EXPORT.key, Settings.DATE_SETTINGS_EXPORT);
         return settings;
     }
 
@@ -234,6 +261,11 @@ public final class ConfigurationBackup {
      * any of these, and one of them no longer costs every other choice in it.
      */
     public static synchronized Result restore(byte[] bytes) throws IOException {
+        return restore(bytes, () -> true);
+    }
+
+    /** Rechecks the calling page's permission at the transaction boundary, after file validation. */
+    public static synchronized Result restore(byte[] bytes, java.util.function.BooleanSupplier mayCommit) throws IOException {
         final Map<Setting<?>, Object> updates = new LinkedHashMap<>();
         final Map<String, Setting<?>> allowed = eligible();
         int skipped = 0;
@@ -267,6 +299,16 @@ public final class ConfigurationBackup {
             throw invalid();
         }
         synchronized (Setting.class) {
+            requirePermission(mayCommit);
+            // Authentication can change while a file is being validated. Hold lock switches at
+            // the same boundary as the writes, even when the calling page itself stays open.
+            for (var entries = updates.entrySet().iterator(); entries.hasNext();) {
+                var entry = entries.next();
+                if (heldByLock(entry.getKey())) {
+                    if (!entry.getValue().equals(entry.getKey().savedValue())) held++;
+                    entries.remove();
+                }
+            }
             Map<Setting<?>, Object> before = new LinkedHashMap<>();
             boolean restart = false;
             for (var entry : updates.entrySet()) {
@@ -294,14 +336,15 @@ public final class ConfigurationBackup {
     /**
      * [value] as [setting] would save it, declared as [declared], or null when this build can't take
      * it: another type than the setting's, an enum constant it doesn't have, text over
-     * {@link #MAX_TEXT} characters ({@link #MAX_WORDS_TEXT} for the blocked words) or text
+     * {@link #MAX_TEXT} characters ({@link #MAX_WORDS_TEXT} for blocked words and settings rows) or text
      * {@link #textAllowed} refuses.
      */
     @Nullable
     static Object accepted(Setting<?> setting, String declared, Object value) {
         Object fallback = setting.defaultValue;
         if (fallback instanceof Boolean) return "boolean".equals(declared) && value instanceof Boolean ? value : null;
-        int longest = setting == Settings.REELS_BLOCKED_WORDS ? MAX_WORDS_TEXT : MAX_TEXT;
+        int longest = setting == Settings.REELS_BLOCKED_WORDS || setting == Settings.HIDDEN_SETTINGS_ROWS
+                ? MAX_WORDS_TEXT : MAX_TEXT;
         if (!(value instanceof String) || ((String) value).length() > longest) return null;
         if (fallback instanceof Enum) {
             if (!"enum".equals(declared)) return null;
@@ -340,8 +383,14 @@ public final class ConfigurationBackup {
         }
         // The message box buttons left off, as the names of Instagram's enum with commas between, in the order the dialog lists them.
         if (setting == Settings.HIDDEN_MESSAGE_BOX_BUTTONS) return text.equals(MessageBox.join(MessageBox.parse(text)));
+        // The rows of Instagram's settings left off, as the names of Instagram's row ids with commas between, in name order.
+        if (setting == Settings.HIDDEN_SETTINGS_ROWS) return text.equals(SettingsRows.join(SettingsRows.parse(text)));
         // The profile tabs left off, as Instagram's keys with commas between, in the order the dialog lists them.
         if (setting == Settings.HIDDEN_PROFILE_TABS) return text.equals(ProfileTabs.join(ProfileTabs.parse(text)));
+        // The same for your own profile, or the mark that it still follows other profiles.
+        if (setting == Settings.HIDDEN_OWN_PROFILE_TABS) {
+            return text.equals(ProfileTabs.SAME_AS_OTHERS) || text.equals(ProfileTabs.join(ProfileTabs.parse(text)));
+        }
         // The words Hide reels by caption words looks for: any text without control characters but line breaks.
         if (setting == Settings.REELS_BLOCKED_WORDS) return blockedWordsAllowed(text);
         // An enum constant name of Instagram's; a name this Instagram lacks keeps its heart.
@@ -384,12 +433,18 @@ public final class ConfigurationBackup {
 
     /** A queued action belongs to the import it offered, never a later restore point. */
     public static synchronized Result undo(long token) throws IOException {
+        return undo(token, () -> true);
+    }
+
+    /** A refused page keeps its still-valid Undo token and deadline. */
+    public static synchronized Result undo(long token, java.util.function.BooleanSupplier mayCommit) throws IOException {
         if (undoDeadline(token) == 0) return null;
-        Map<Setting<?>, Object> values = undoValues;
-        Map<Setting<?>, Object> expected = importedValues;
-        Map<Setting<?>, Long> revisions = importedRevisions;
-        forgetUndo();
         synchronized (Setting.class) {
+            requirePermission(mayCommit);
+            Map<Setting<?>, Object> values = undoValues;
+            Map<Setting<?>, Object> expected = importedValues;
+            Map<Setting<?>, Long> revisions = importedRevisions;
+            forgetUndo();
             Map<Setting<?>, Object> before = new LinkedHashMap<>();
             boolean restart = false;
             int skipped = 0;
@@ -452,5 +507,14 @@ public final class ConfigurationBackup {
     private static IOException invalid() {
         // Parser causes can carry input values. Keep untrusted content out of diagnostic logs.
         return new IOException("Invalid HushGram configuration file");
+    }
+
+    private static void requirePermission(java.util.function.BooleanSupplier mayCommit) throws Held {
+        try {
+            if (mayCommit != null && mayCommit.getAsBoolean()) return;
+        } catch (RuntimeException unavailable) {
+            // Unreadable authorization must never grant a queued write.
+        }
+        throw new Held();
     }
 }

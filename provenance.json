@@ -3,6 +3,20 @@
   "rules": [
     {
       "paths": [
+        "extensions/shared/library/src/main/l10n/zh-rTW.tsv"
+      ],
+      "origin": "ported",
+      "upstream": "https://github.com/JhouHank/HushGram",
+      "commit": "95b2fd99e642f8f1d0a8563ba36fe7af1c21f933",
+      "blob": "33608947eb8aaa925a79dadd4b6a95305d3e601b",
+      "via": [
+        "https://github.com/crimera/piko"
+      ],
+      "license": "GPL-3.0-only with Piko's section 7(b) attribution notice",
+      "changes": "JhouHank's Traditional Chinese (Taiwan) table imported from HushGram PR #313. Font placement hints were adjusted here. Privacy descriptions and notification counts are also maintained here. The contributor declares their Piko translations as a terminology reference; its exact source revision is not supplied. Piko's attribution is preserved in the table and NOTICE. No Piko implementation is imported."
+    },
+    {
+      "paths": [
         "extensions/shared/**",
         "patches/src/main/kotlin/app/morphe/util/**",
         "patches/src/main/kotlin/app/morphe/patches/shared/**",
@@ -207,6 +221,8 @@
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/QualityPicker.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/FocusRest.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/RestartNow.java",
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/SettingsLock.java",
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/ShimmerTitle.java",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/resignedtrust/SameKeyProviders.kt",
         "patches/src/test/kotlin/app/morphe/patches/instagram/misc/resignedtrust/SameKeyProvidersTest.kt",
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/misc/SameKeyProviderCallerTest.java",
@@ -216,6 +232,7 @@
         "patches/src/test/kotlin/app/morphe/MergedReturnSourceTest.kt",
         "patches/src/test/kotlin/app/morphe/patches/instagram/metaai/InboxRowHookTest.kt",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/theme/**",
+        "patches/src/main/kotlin/app/morphe/patches/instagram/misc/icon/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/font/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/versioncode/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/coexist/**",
@@ -224,6 +241,8 @@
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/glass/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/heartbeat/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/profilesaved/**",
+        "patches/src/main/kotlin/app/morphe/patches/instagram/misc/settingsrows/**",
+        "patches/src/test/kotlin/app/morphe/patches/instagram/misc/settingsrows/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/emoji/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/misc/location/**",
         "patches/src/main/kotlin/app/morphe/patches/instagram/profile/**",
@@ -274,6 +293,8 @@
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/download/ProfilePictureSaveTest.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/ProfilePictureViewer.java",
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/download/ProfilePictureViewerTest.java",
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/ProfileExtras.java",
+        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/download/ProfileExtrasTest.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/PictureFetch.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/VoiceMessage.java",
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/download/VoiceMessageTest.java",
@@ -298,9 +319,14 @@
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/HoldTargets.java",
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/download/HoldDownloadTest.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/DownloadHistory.java",
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/DownloadPreparation.java",
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/ConnectionClose.java",
+        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/download/protocols/hushgramtest/Handler.java",
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/download/DownloadHistoryTest.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/CarouselPages.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/CoverFrame.java",
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/SaveTree.java",
+        "extensions/shared/library/src/main/java/app/hushgram/extension/shared/ViewWatcher.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/VideoConvert.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/SettingsScreenRow.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/ShortcutCover.java",
@@ -390,9 +416,16 @@
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/SettingsVisualCaptureTest.java",
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/ScreenColorsAccessibilityTest.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/ReportProblemForm.java",
-        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/QuickSetupKeys.java",
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/settings/DescriptionInfo.java",
         "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/InstantsSeen.java",
-        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/CropView.java"
+        "extensions/instagram/src/main/java/app/hushgram/extension/instagram/download/CropView.java",
+        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/direct/PinPersistenceTest.java",
+        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/SettingsLockPersistenceTest.java",
+        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/ConfigurationSelectionBackupTest.java",
+        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/ConfigurationGuardTest.java",
+        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/SettingsDeferredSaveTest.java",
+        "extensions/instagram/src/test/resources/settings-row-ids-452.txt",
+        "patches/src/test/kotlin/app/morphe/patches/instagram/misc/extension/RuntimeFloorTest.kt"
       ],
       "origin": "original",
       "upstream": "https://github.com/SysAdminDoc/HushGram",
@@ -414,8 +447,6 @@
         "extensions/instagram/src/test/java/app/hushgram/extension/shared/settings/preference/ReopenSettingsAfterRestartTest.java",
         "extensions/shared/library/src/main/java/app/hushgram/extension/shared/settings/preference/ReportProblem.java",
         "extensions/instagram/src/test/java/app/hushgram/extension/shared/settings/preference/ReportProblemTest.java",
-        "extensions/shared/library/src/main/java/app/hushgram/extension/shared/settings/preference/QuickSetups.java",
-        "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/QuickSetupKeysTest.java",
         "extensions/instagram/src/test/java/app/hushgram/extension/instagram/settings/ReportProblemFormTest.java"
       ],
       "origin": "ported",
@@ -429,7 +460,7 @@
         "https://gitlab.com/ReVanced/revanced-patches"
       ],
       "license": "GPL-3.0-only with the Morphe section 7 notices",
-      "changes": "HushPinterest's settings-screen helpers, packages moved from app.hushpinterest.extension to app.hushgram.extension. ReopenSettingsAfterRestart keeps the one-shot marker and its 90 second limit, but not the restart: HushGram's status card restarts Instagram through RestartNow, which writes the marker with remember(page) and drops it with forget() when the restart fails. The changes-waiting count went with it, since the card doesn't count. ReportProblem is as it was apart from the package and Instagram in its comments. QuickSetups looks each row up by key, so rows a category page or a search keeps off the screen still change, and asks the row's own change listener first, so a switch with its own steps (a PIN, a restart notice) runs them. Changed files carry a 'Modified for HushGram' line."
+      "changes": "HushPinterest's settings-screen helpers, packages moved from app.hushpinterest.extension to app.hushgram.extension. ReopenSettingsAfterRestart keeps the one-shot marker and its 90 second limit, but not the restart: HushGram's status card restarts Instagram through RestartNow, which writes the marker with remember(page) and drops it with forget() when the restart fails. The changes-waiting count went with it, since the card doesn't count. ReportProblem is as it was apart from the package and Instagram in its comments. Changed files carry a 'Modified for HushGram' line."
     }
   ]
 }

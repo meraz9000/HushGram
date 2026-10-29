@@ -70,7 +70,8 @@ private const val MOTION_EVENT = "Landroid/view/MotionEvent;"
 val stopReelsScrollingPatch = bytecodePatch(
     name = "Stop Reels scrolling",
     description = "Stops a swipe in Reels from moving to the next reel, so you stay on the one you opened. A " +
-        "second switch lets you watch 20 reels, then stops swiping for 15 minutes. Starts off. Turn it on in " +
+        "second switch lets you watch 20 reels, then stops swiping for 15 minutes, and Take a scroll break " +
+        "covers Home, Reels and Explore for 5 minutes after the time you pick. Starts off. Turn it on in " +
         "HushGram settings > Reels.",
     default = true,
 ) {
@@ -144,7 +145,6 @@ internal fun BytecodePatchContext.findReelsScrolling(): ReelsScrollingSite {
     }
 
     val viewer = uniqueMethod(PATCH, "Reels pager setup holding \"$PAGER_SETUP\"", ReelsViewerSetupFingerprint)
-    if (AccessFlags.STATIC.isSet(viewer.accessFlags)) refuse("${viewer.definingClass}->${viewer.name} is static")
     val code = viewer.instructions()
     val where = "${viewer.definingClass}->${viewer.name}"
     val stores = code.indices.filter { code[it].opcode == Opcode.IPUT_OBJECT && code[it].fieldReference()?.toString() == field }

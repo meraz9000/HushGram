@@ -20,6 +20,7 @@ import java.util.Set;
 
 import app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.ClearRow;
 import app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.ExportRow;
+import app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.Row;
 import app.hushgram.extension.shared.L10n;
 import app.hushgram.extension.shared.settings.BaseSettings;
 import app.hushgram.extension.shared.settings.preference.ClearLogBufferPreference;
@@ -31,12 +32,24 @@ final class PauseCategory {
     private PauseCategory() { }
 
     static void add(HushgramPreferenceFragment page, PreferenceScreen screen, Context context, Set<PatchFamily> build) {
-        // Named for its rows: the screen's own title already says HushGram.
-        PreferenceCategory hushgram = category(screen, L10n.t("Pause and diagnostics"), SettingsIcons.PAUSE, null);
+        // Named for its rows: the screen's own title already says HushGram. It folds like the others,
+        // and opens by itself while paused, locked or showing an interrupted save.
+        PreferenceCategory hushgram = category(screen, L10n.t("Pause and diagnostics"), SettingsIcons.PAUSE,
+                L10n.t("Pause HushGram, lock these settings, or make a report when something breaks."));
         page.recovery = hushgram;
         hushgram.addPreference(mark(toggle(context, BaseSettings.PAUSED, L10n.t("Pause HushGram"),
                 L10n.t("From the next start, every switch but Debug logging acts as if it were off. "
                         + "Changes made when you patched stay in, and your choices stay saved.")), SettingsIcons.PATCHED));
+        // Lock these settings (#301), under Pause, which it locks too. Its words follow the lock's state.
+        Row lock = page.settingsLock = new Row(context);
+        lock.setKey(HushgramPreferenceFragment.LOCK_ROW_KEY);
+        lock.setPersistent(false);
+        HushgramPreferenceFragment.showLockRow(lock, SettingsLock.state());
+        lock.setOnPreferenceClickListener(p -> {
+            page.tapLock();
+            return true;
+        });
+        hushgram.addPreference(mark(lock, SettingsIcons.LOCK));
         // Debug logging also fills the exported report and turns on error toasts (Logger).
         hushgram.addPreference(mark(toggle(context, BaseSettings.DEBUG, L10n.t("Debug logging"),
                 L10n.t("Record patch activity and show errors for a bug report. Leave off during normal use.")), SettingsIcons.BUG));

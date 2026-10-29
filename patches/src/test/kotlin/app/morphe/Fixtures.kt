@@ -5,6 +5,7 @@
  */
 package app.morphe
 
+import app.morphe.patcher.patch.SupportedAbi
 import app.morphe.patches.shared.compat.AppCompatibilities
 import java.io.File
 import org.junit.Assert.fail
@@ -34,8 +35,12 @@ internal object Fixtures {
      */
     val BUILDS = System.getenv("HUSHGRAM_FIXTURE_BUILDS")?.trim()?.toIntOrNull() ?: 4
 
-    /** The builds besides the declared one. */
-    val OTHER_BUILDS = BUILDS - AppCompatibilities.instagram().flatMap { it.targets }.sumOf { it.versionCodes.orEmpty().size }
+    /**
+     * The builds besides the arm64 one each target's bundle fixture holds. Every ABI's build is
+     * declared to Manager (#346), but only the arm64 build is kept as a bundle; the rest are read
+     * from their folders.
+     */
+    val OTHER_BUILDS = BUILDS - AppCompatibilities.instagram().flatMap { it.targets }.count { it.versionCodes.orEmpty().containsKey(SupportedAbi.ARM64_V8A) }
 
     /** The declared version, for assertion messages. */
     val VERSION: String = AppCompatibilities.INSTAGRAM_TARGET_VERSION
@@ -52,7 +57,7 @@ internal object Fixtures {
      * The base APKs of the other builds of each declared Instagram version, sorted by build. Each
      * is in a folder named `instagram-<version>-<version code>` in the fixture folder, and the
      * declared build's own folder is left out. Instagram ships one version as several builds
-     * (452.1.0.53.64 has one each for arm64, armeabi-v7a, x86 and x86_64), each compiled on its
+     * (453.0.0.55.79 has one each for arm64, armeabi-v7a, x86 and x86_64), each compiled on its
      * own, and the patches find what they change by its shape, so these are read too (#77, #95).
      * A checkout testing one ABI only sets `HUSHGRAM_FIXTURE_BUILDS` and holds one fixture, so
      * there are no others to read.
@@ -63,8 +68,8 @@ internal object Fixtures {
         val folders = directory.listFiles()?.filter { it.isDirectory }.orEmpty()
         val found = AppCompatibilities.instagram().flatMap { it.targets }.flatMap { target ->
             val version = target.version ?: return@flatMap emptyList()
-            val declared = target.versionCodes.orEmpty().values.mapTo(HashSet()) { "instagram-$version-$it" }
-            folders.filter { it.name.startsWith("instagram-$version-") && it.name !in declared }.map { File(it, "base.apk") }.filter { it.isFile }
+            val bundled = target.versionCodes.orEmpty()[SupportedAbi.ARM64_V8A]?.let { "instagram-$version-$it" }
+            folders.filter { it.name.startsWith("instagram-$version-") && it.name != bundled }.map { File(it, "base.apk") }.filter { it.isFile }
         }.sortedBy { it.parentFile.name }
         if (found.isEmpty()) {
             fail("$VARIABLE names $directory, which holds no instagram-<version>-<version code> folder with another build's base.apk.")
@@ -72,7 +77,8 @@ internal object Fixtures {
         return found
     }
 
-    private fun folder(): File {
+    /** The fixture folder; skips the test when [VARIABLE] isn't set. */
+    fun folder(): File {
         val configured = System.getenv(VARIABLE)
         assumeTrue(
             "$VARIABLE is not set, so the Instagram fixture tests skip. Point it at the folder " +

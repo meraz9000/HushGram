@@ -12,6 +12,7 @@ import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragme
 import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.category;
 import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.hiddenBarsRow;
 import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.likeAnimationRow;
+import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.scrollBreakRow;
 import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.toggle;
 
 import android.content.Context;
@@ -91,6 +92,9 @@ final class ReelsCategory {
             reels.add(toggle(context, Settings.HIDE_REELS_YOUR_ALGORITHM, L10n.t("Hide Your algorithm on reels"),
                     L10n.t("Takes the Your algorithm button off the top of the Reels tab and closes up the gap. The "
                             + "rest of the bar stays.")));
+            reels.add(toggle(context, Settings.HIDE_REELS_FRIENDS_TAB, L10n.t("Hide the Friends tab on Reels"),
+                    L10n.t("Takes the Friends tab, with reels the people you follow shared, off the top of the Reels "
+                            + "tab. Reels stays where it is.")));
             reels.add(toggle(context, Settings.HIDE_REEL_SAVE_BUTTON, L10n.t("Hide the Save button on reels"),
                     L10n.t("Takes the Save button out of the column of buttons beside a reel, and the count under it. "
                             + "Posts in your feed keep theirs.")));
@@ -137,19 +141,14 @@ final class ReelsCategory {
                             + "They're animations Instagram made for its Rings creators.")));
             reels.add(likeAnimationRow(context));
         }
-        if (build.contains(PatchFamily.REELS_TAB)) {
-            reels.add(toggle(context, Settings.HIDE_REELS_TAB, L10n.t("Hide the Reels tab"),
-                    L10n.t("Takes Reels off the tab bar. Reels in your feed and reels people send you still open. "
-                            + "Restart Instagram to see the change.")));
-            reels.add(toggle(context, Settings.SHOW_REELS_TAB, L10n.t("Show the Reels tab"),
-                    L10n.t("Puts Reels back on the tab bar if Instagram left it off yours. Hide the Reels tab wins if "
-                            + "both are on. Restart Instagram to see the change.")));
-        }
         if (build.contains(PatchFamily.FULL_SCREEN_BARS)) {
             reels.add(toggle(context, Settings.FULL_SCREEN_REELS, L10n.t("Full screen Reels"),
                     L10n.t("Hides the status bar and the navigation bar while Reels shows. Swipe in from the edge to "
                             + "bring them back for a moment. Back and the keyboard work as usual.")));
             reels.add(hiddenBarsRow(context));
+            reels.add(toggle(context, Settings.FILL_REEL_SCREEN, L10n.t("Fill the screen"),
+                    L10n.t("Reels that are nearly the screen's shape fill it, cut a little at the sides, instead of "
+                            + "showing black bars above and below. Square and wide videos still fit.")));
         }
         if (build.contains(PatchFamily.KEEP_REEL_SPEED)) {
             reels.add(toggle(context, Settings.KEEP_REEL_SPEED, L10n.t("Keep the reel speed"),
@@ -203,6 +202,7 @@ final class ReelsCategory {
             reels.add(toggle(context, Settings.REEL_CAP, L10n.t("Stop after 20 reels"),
                     L10n.t("After 20 reels, swiping in Reels stops until Instagram has been in the background for "
                             + "15 minutes. A reel you open from a message or a post still plays.")));
+            reels.add(scrollBreakRow(context));
         }
         if (build.contains(PatchFamily.SWIPE_TO_PROFILE)) {
             reels.add(toggle(context, Settings.REEL_SWIPE_TO_PROFILE, L10n.t("Swipe left to open the profile"),
@@ -232,7 +232,7 @@ final class ReelsCategory {
         }
         if (!reels.isEmpty()) {
             PreferenceCategory section = category(screen, L10n.t("Reels"), SettingsIcons.REELS,
-                    L10n.t("Choose what reels show, and how they play and scroll."));
+                    L10n.t("Playback and controls in the Reels tab."));
             for (Preference row : reels) section.addPreference(row);
         }
     }

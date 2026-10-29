@@ -123,6 +123,51 @@ $facts = ConvertFrom-ManifestXmlTree -Lines $manifestLines -Source 'fixture'
 Assert-True ($facts.package -eq 'com.example.host') 'The manifest package was not read.'
 Assert-True ($facts.versionName -eq '46.7.3') 'The manifest version name was not read.'
 Assert-True ($facts.versionCode -eq '2024607030') 'The manifest version code was not read.'
+Assert-True ($facts.minSdkVersion -eq 1) 'A missing uses-sdk must have Android''s default floor of 1.'
+$sdk26 = ConvertFrom-ManifestXmlTree -Source 'sdk26' -Lines ($manifestLines + @(
+    '      E: uses-sdk (line=20)',
+    '        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=26'))
+Assert-True ($sdk26.minSdkVersion -eq 26) 'The vendor minimum Android API was not read.'
+Assert-Throws { Assert-HushgramRuntimeFloor -Manifest $sdk26 } '*API 26*API 28*' `
+    'An APK below the extension runtime floor was accepted.'
+$sdk28 = ConvertFrom-ManifestXmlTree -Source 'sdk28' -Lines ($manifestLines + @(
+    '      E: uses-sdk (line=20)',
+    '        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=28'))
+Assert-HushgramRuntimeFloor -Manifest $sdk28
+Assert-Throws { Assert-HushgramRuntimeFloor -Manifest $sdk26 -Stock $sdk26 } '*API 26*API 28*' `
+    'A vendor API 26 manifest that was never raised was accepted.'
+Assert-HushgramRuntimeFloor -Manifest $sdk28 -Stock $sdk26
+$sdk31 = ConvertFrom-ManifestXmlTree -Source 'sdk31' -Lines ($manifestLines + @(
+    '      E: uses-sdk (line=20)',
+    '        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=31'))
+Assert-HushgramRuntimeFloor -Manifest $sdk31 -Stock $sdk31
+Assert-Throws { Assert-HushgramRuntimeFloor -Manifest $sdk28 -Stock $sdk31 } '*API 28*API 31*' `
+    'A higher vendor floor was silently lowered.'
+$hexSdk = ConvertFrom-ManifestXmlTree -Source 'hex-sdk' -Lines ($manifestLines + @(
+    '      E: uses-sdk (line=20)',
+    '        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=(type 0x10)0x1c'))
+Assert-True ($hexSdk.minSdkVersion -eq 28) 'A typed hexadecimal minimum was not read.'
+foreach ($badMinimum in @('0', '-1', 'FutureAndroid', '(type 0x10)0xffffffff')) {
+    Assert-Throws { ConvertFrom-ManifestXmlTree -Source 'bad-sdk' -Lines ($manifestLines + @(
+        '      E: uses-sdk (line=20)',
+        "        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=$badMinimum")) } `
+        '*minimum Android API*' "The minimum Android API '$badMinimum' was accepted."
+}
+foreach ($misplaced in @(
+        @('      E: application (line=50)', '        E: uses-sdk (line=51)',
+            '          A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=28'),
+        @('      E: uses-sdk (line=50)', '        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=28',
+            '      E: uses-sdk (line=51)', '        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=28'),
+        @('  E: uses-sdk (line=50)', '    A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=28'))) {
+    Assert-Throws { ConvertFrom-ManifestXmlTree -Source 'misplaced-sdk' -Lines ($manifestLines + $misplaced) } `
+        '*uses-sdk*' 'A nested, repeated or root-sibling SDK declaration was accepted.'
+}
+Assert-Throws { ConvertFrom-ManifestXmlTree -Source 'unqualified-sdk' -Lines ($manifestLines + @(
+    '      E: uses-sdk (line=50)', '        A: minSdkVersion=28')) } `
+    '*minimum Android API*namespace*' 'An unqualified minimum that Android ignores was accepted.'
+$raisedSdk = Get-ManifestDelta -Stock $sdk26 -Patched $sdk28
+Assert-True ((@(ConvertTo-ManifestDeltaEntries -Delta $raisedSdk) -join '; ') -ceq 'min-sdk 28') `
+    'The minimum Android API change was not included in the reviewed manifest delta.'
 Assert-True (($facts.permissions -join ',') -eq 'android.permission.CAMERA,android.permission.INTERNET') `
     'The requested permissions were not read and sorted.'
 Assert-True (($facts.exported -join ',') -eq 'activity:com.example.host.Main,service:com.example.host.Sync') `
@@ -178,9 +223,10 @@ $olderDelta = [pscustomobject]@{ permissionsAdded = @(); permissionsRemoved = @(
 Assert-True ((@(ConvertTo-ManifestDeltaEntries -Delta $olderDelta) -join '; ') -ceq 'permission-removed android.permission.CAMERA') `
     'A delta without a version code field did not flatten.'
 
-# The checked-in allowlist approves two changes and nothing else: Remove the advertising ID takes
+# The checked-in allowlist approves three changes and nothing else: Remove the advertising ID takes
 # the three advertising ID permissions out of the build, which the receipt reads as three
-# permissions no longer asked for, and Change version code raises the version code to the highest.
+# permissions no longer asked for, Change version code raises the version code to the highest, and
+# Pick the app icon adds one launcher alias per HushGram icon, exported like Instagram's own.
 $checkedInAllowlist = @(Read-ManifestDeltaAllowlist -Path (Join-Path $PSScriptRoot 'manifest-delta-allowlist.txt') |
     Where-Object { $_ })
 $removalEntries = @(
@@ -189,11 +235,13 @@ $removalEntries = @(
     'permission-removed com.google.android.gms.permission.AD_ID')
 $removedPermissions = @($removalEntries | ForEach-Object { $_ -replace '^permission-removed ', '' })
 $raisedVersionCode = '2147483647'
-$approvedEntries = @($removalEntries) + "version-code $raisedVersionCode"
+$iconAliasEntries = @('hushgram', 'dark', 'light', 'plum' | ForEach-Object {
+    "exported-added activity-alias:com.instagram.android.activity.MainTabActivity.hushgram_$_" })
+$approvedEntries = @($removalEntries) + "version-code $raisedVersionCode" + $iconAliasEntries + 'min-sdk 28'
 Assert-True ((@($checkedInAllowlist | Sort-Object -CaseSensitive) -join "`n") -ceq
         (@($approvedEntries | Sort-Object -CaseSensitive) -join "`n")) `
-    ('The checked-in manifest delta allowlist approves something besides the advertising ID removals and the ' +
-     "raised version code, or less than all of them: $($checkedInAllowlist -join ', ')")
+    ('The checked-in manifest delta allowlist approves something besides the advertising ID removals, the ' +
+     "raised version code, runtime floor and icon aliases, or less than all of them: $($checkedInAllowlist -join ', ')")
 
 $allowlistRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("receipt-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $allowlistRoot | Out-Null
@@ -244,7 +292,7 @@ try {
     # the document before it's written.
     function New-TestSbom {
         param([string]$Path, [string]$Bundle,
-            [string[]]$Libraries = @('pkg:maven/com.google.code.gson/gson@2.14.0'), [scriptblock]$Mutate,
+            [string[]]$Libraries = @('pkg:maven/com.google.code.gson/gson@2.15.0'), [scriptblock]$Mutate,
             [string]$InputRoot, [string]$LicenseLedger, [object[]]$ReviewedLicenseRecords)
         $bundleName = Split-Path -Leaf $Bundle
         $facts = Get-BundleManifestFacts -BundlePath $Bundle
@@ -362,19 +410,19 @@ try {
         targets   = @([ordered]@{
             source = [ordered]@{ file = 'stock.apkm'; package = 'com.example.host'
                 versionName = '46.7.3'; versionCode = '2024607030'; sha256 = ('B' * 64)
-                forced = $false }
+                forced = $false; minSdkVersion = 28 }
             patches = @([ordered]@{ name = 'Alpha'; applied = $true; reason = $null },
                         [ordered]@{ name = 'Beta'; applied = $true; reason = $null })
-            coverage = @(); coverageReviewed = $true
+            coverage = @(); coverageReviewed = $true; minSdkVersion = 28
             manifestDelta = [ordered]@{ permissionsAdded = @(); permissionsRemoved = @()
                 exportedComponentsAdded = @(); exportedComponentsRemoved = @(); versionCodeChanged = @() }
         }, [ordered]@{
             source = [ordered]@{ file = 'previous.apkm'; package = 'com.example.host'
                 versionName = '46.6.1'; versionCode = '2024606010'; sha256 = ('D' * 64)
-                forced = $false }
+                forced = $false; minSdkVersion = 28 }
             patches = @([ordered]@{ name = 'Alpha'; applied = $true; reason = $null },
                         [ordered]@{ name = 'Beta'; applied = $true; reason = $null })
-            coverage = @(); coverageReviewed = $true
+            coverage = @(); coverageReviewed = $true; minSdkVersion = 28
             manifestDelta = [ordered]@{ permissionsAdded = @(); permissionsRemoved = @()
                 exportedComponentsAdded = @(); exportedComponentsRemoved = @(); versionCodeChanged = @() }
         })
@@ -634,21 +682,47 @@ try {
     Assert-True ($stale.Reason -like '*any more*') `
         "The stale allowlist entry was refused for the wrong reason: $($stale.Reason)"
 
-    # The checked-in allowlist, against receipts that carry the three removals and the raised version
-    # code on both builds. Those pass. They plus any other change are refused, naming only the other,
-    # and a removal that stopped part way is refused for the part no patch makes any more.
+    # The checked-in allowlist, against receipts that carry the three removals, the raised version
+    # code and the icon aliases on both builds. Those pass. They plus any other change are refused,
+    # naming only the other, and a removal that stopped part way is refused for the part no patch
+    # makes any more.
+    $iconAliases = @($iconAliasEntries -replace '^exported-added ', '')
     $withRemovals = {
         param($r)
         foreach ($target in $r.targets) {
             $target.manifestDelta.permissionsRemoved = @($removedPermissions)
             $target.manifestDelta.versionCodeChanged = @($raisedVersionCode)
+            $target.manifestDelta.exportedComponentsAdded = @($iconAliases)
         }
     }
     $removed = Test-TestReceipt -Receipt (New-TestReceipt -Mutate $withRemovals) -Approved $checkedInAllowlist
     Assert-True $removed.Valid "A receipt carrying the approved advertising ID removals was refused: $($removed.Reason)"
+    foreach ($floorFault in @(
+            { param($t) $t.minSdkVersion = 26 },
+            { param($t) $t.minSdkVersion = '28' },
+            { param($t) $t.PSObject.Properties.Remove('minSdkVersion') },
+            { param($t) $t.source.PSObject.Properties.Remove('minSdkVersion') },
+            { param($t) $t.source.minSdkVersion = 31 })) {
+        $badFloor = New-TestReceipt -Mutate { param($r) & $withRemovals $r; & $floorFault $r.targets[0] }
+        $verdict = Test-TestReceipt -Receipt $badFloor -Approved $checkedInAllowlist
+        Assert-True (-not $verdict.Valid -and ($verdict.Reason -like '*Android API*' -or
+            $verdict.Reason -like '*runtime floor*')) `
+            "A receipt with missing, lowered or unverified SDK facts was accepted: $($verdict.Reason)"
+    }
+    $raisedFloor = New-TestReceipt -Mutate {
+        param($r)
+        & $withRemovals $r
+        $r.targets[0].source.minSdkVersion = 26
+        $r.targets[0].manifestDelta | Add-Member -NotePropertyName minSdkChanged -NotePropertyValue @('28') -Force
+    }
+    $raisedFloorVerdict = Test-TestReceipt -Receipt $raisedFloor -Approved $checkedInAllowlist
+    Assert-True $raisedFloorVerdict.Valid "A correctly raised API 26 manifest was refused: $($raisedFloorVerdict.Reason)"
     $unraised = Test-TestReceipt -Receipt (New-TestReceipt -Mutate {
             param($r)
-            foreach ($target in $r.targets) { $target.manifestDelta.permissionsRemoved = @($removedPermissions) }
+            foreach ($target in $r.targets) {
+                $target.manifestDelta.permissionsRemoved = @($removedPermissions)
+                $target.manifestDelta.exportedComponentsAdded = @($iconAliases)
+            }
         }) -Approved $checkedInAllowlist
     Assert-True (-not $unraised.Valid -and $unraised.Reason -like "*any more: version-code $raisedVersionCode") `
         "A receipt whose version code was never raised passed the allowlist that approves raising it: $($unraised.Reason)"
@@ -661,7 +735,7 @@ try {
             @{ Name = 'another permission dropped'; Entry = 'permission-removed android.permission.CAMERA'
                 Change = { param($t) $t.manifestDelta.permissionsRemoved = @($t.manifestDelta.permissionsRemoved) + 'android.permission.CAMERA' } },
             @{ Name = 'a component exported'; Entry = 'exported-added receiver:com.example.host.Probe'
-                Change = { param($t) $t.manifestDelta.exportedComponentsAdded = @('receiver:com.example.host.Probe') } },
+                Change = { param($t) $t.manifestDelta.exportedComponentsAdded = @($t.manifestDelta.exportedComponentsAdded) + 'receiver:com.example.host.Probe' } },
             @{ Name = 'a component no longer exported'; Entry = 'exported-removed activity:com.example.host.Main'
                 Change = { param($t) $t.manifestDelta.exportedComponentsRemoved = @('activity:com.example.host.Main') } },
             @{ Name = 'another version code'; Entry = 'version-code 2147483646'
@@ -677,6 +751,7 @@ try {
         foreach ($target in $r.targets) {
             $target.manifestDelta.permissionsRemoved = @($removedPermissions | Select-Object -First 2)
             $target.manifestDelta.versionCodeChanged = @($raisedVersionCode)
+            $target.manifestDelta.exportedComponentsAdded = @($iconAliases)
         }
     }
     $part = Test-TestReceipt -Receipt $partWay -Approved $checkedInAllowlist
@@ -700,7 +775,7 @@ try {
     Assert-True ($sbomRead.BundleName -eq 'patches-9.9.9.mpp' -and $sbomRead.BundleVersion -eq '9.9.9' -and
         $sbomRead.BundleSha256 -ceq $bundleHash.ToLowerInvariant() -and $sbomRead.Timestamp -eq '2023-11-14T22:13:20Z' -and
         @($sbomRead.Components).Count -eq 3 -and @($sbomRead.Libraries).Count -eq 1 -and
-        $sbomRead.Libraries[0].Purl -eq 'pkg:maven/com.google.code.gson/gson@2.14.0' -and $sbomRead.Libraries[0].Name -eq 'gson' -and
+        $sbomRead.Libraries[0].Purl -eq 'pkg:maven/com.google.code.gson/gson@2.15.0' -and $sbomRead.Libraries[0].Name -eq 'gson' -and
         @($sbomRead.Payloads).Count -eq 1 -and $sbomRead.Payloads[0].Ref -eq 'extensions/instagram.mpe' -and
         $sbomRead.Sha256 -eq (Get-Sha256Hex -Path $sbomFile)) `
         "The SBOM was misread: $($sbomRead.BundleName) $($sbomRead.BundleVersion) $($sbomRead.Timestamp), $(@($sbomRead.Components).Count) components"
@@ -757,17 +832,17 @@ try {
             @{ Name = 'no bundle hash'; Mutate = { param($d) $d.metadata.component.Remove('hashes') }; Pattern = '*does not name the bundle it describes*' },
             @{ Name = 'a package URL for another version'; Mutate = { param($d) $d.components[0].purl = 'pkg:maven/com.google.code.gson/gson@2.8.8' }
                 Pattern = '*with the package URL pkg:maven/com.google.code.gson/gson@2.8.8, which doesn''t name its own group, name and version*' },
-            @{ Name = 'a package URL with no group'; Mutate = { param($d) $d.components[0].purl = 'pkg:maven/gson@2.14.0' }
-                Pattern = '*with the package URL pkg:maven/gson@2.14.0, which doesn''t name*' },
-            @{ Name = 'a package URL for another group'; Mutate = { param($d) $d.components[0].purl = 'pkg:maven/com.google.gson/gson@2.14.0' }
-                Pattern = '*with the package URL pkg:maven/com.google.gson/gson@2.14.0, which doesn''t name*' },
-            @{ Name = 'a package URL for another name'; Mutate = { param($d) $d.components[0].purl = 'pkg:maven/com.google.code.gson/gson-extras@2.14.0' }
-                Pattern = '*with the package URL pkg:maven/com.google.code.gson/gson-extras@2.14.0, which doesn''t name*' },
+            @{ Name = 'a package URL with no group'; Mutate = { param($d) $d.components[0].purl = 'pkg:maven/gson@2.15.0' }
+                Pattern = '*with the package URL pkg:maven/gson@2.15.0, which doesn''t name*' },
+            @{ Name = 'a package URL for another group'; Mutate = { param($d) $d.components[0].purl = 'pkg:maven/com.google.gson/gson@2.15.0' }
+                Pattern = '*with the package URL pkg:maven/com.google.gson/gson@2.15.0, which doesn''t name*' },
+            @{ Name = 'a package URL for another name'; Mutate = { param($d) $d.components[0].purl = 'pkg:maven/com.google.code.gson/gson-extras@2.15.0' }
+                Pattern = '*with the package URL pkg:maven/com.google.code.gson/gson-extras@2.15.0, which doesn''t name*' },
             @{ Name = 'something that is not a package URL, beside empty fields'
                 Mutate = { param($d) $d.components[0].purl = 'not-a-package-url'; $d.components[0].group = ''; $d.components[0].name = ''; $d.components[0].version = '' }
                 Pattern = '*with the package URL not-a-package-url, which doesn''t name*' },
-            @{ Name = 'a library with no package URL'; Mutate = { param($d) $d.components[0].Remove('purl') }; Pattern = '*the library pkg:maven/com.google.code.gson/gson@2.14.0 with no package URL*' },
-            @{ Name = 'the same component twice'; Mutate = { param($d) $d.components = @($d.components) + @($d.components[0]) }; Pattern = '*lists pkg:maven/com.google.code.gson/gson@2.14.0 twice*' },
+            @{ Name = 'a library with no package URL'; Mutate = { param($d) $d.components[0].Remove('purl') }; Pattern = '*the library pkg:maven/com.google.code.gson/gson@2.15.0 with no package URL*' },
+            @{ Name = 'the same component twice'; Mutate = { param($d) $d.components = @($d.components) + @($d.components[0]) }; Pattern = '*lists pkg:maven/com.google.code.gson/gson@2.15.0 twice*' },
             @{ Name = 'a component of another type'; Mutate = { param($d) $d.components[0].type = 'framework' }; Pattern = '*as a framework, which a release SBOM doesn''t hold*' },
             @{ Name = 'a payload with no hash'; Mutate = { param($d) @($d.components | Where-Object { $_.type -eq 'file' })[0].Remove('hashes') }; Pattern = '*the file extensions/instagram.mpe with no SHA-256*' },
             @{ Name = 'no component'; Mutate = { param($d) $d.components = @() }; Pattern = '*lists no component*' })) {
@@ -1272,7 +1347,7 @@ $log4jVectorFour = '{"id":"GHSA-3pxv-7cmr-fjr4","summary":"Apache Log4j Core: Si
 $guavaModerate = '{"id":"GHSA-7g45-4rm6-3mm3","summary":"Guava vulnerable to insecure use of temporary directory","aliases":["CVE-2023-2976"],"modified":"2026-09-10T03:49:53.859811124Z","database_specific":{"severity":"MODERATE"},"severity":[{"type":"CVSS_V3","score":"CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"}]}'
 $guavaLow = '{"id":"GHSA-5mg8-w23w-74h3","summary":"Information Disclosure in Guava","aliases":["CVE-2020-8908"],"modified":"2026-09-10T03:49:26.651391253Z","database_specific":{"severity":"LOW"},"severity":[{"type":"CVSS_V3","score":"CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N"}]}'
 $gsonPurl = 'pkg:maven/com.google.code.gson/gson@2.8.8'
-$cleanPurl = 'pkg:maven/com.google.code.gson/gson@2.14.0'
+$cleanPurl = 'pkg:maven/com.google.code.gson/gson@2.15.0'
 $osvRecorded = @{
     $gsonPurl = "{`"vulns`":[$gsonAdvisory]}"
     'pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1' = "{`"vulns`":[$log4jCritical,$log4jModerate]}"
@@ -1550,7 +1625,7 @@ try {
 
     # The gate. A clean library is asked about once and passes.
     $said = Invoke-Gate @($cleanPurl)
-    Assert-True ($said -like '*OSV has no advisory for the libraries patches-9.9.9.cdx.json lists: gson 2.14.0*' -and
+    Assert-True ($said -like '*OSV has no advisory for the libraries patches-9.9.9.cdx.json lists: gson 2.15.0*' -and
         ($osvAsked -join ', ') -eq $cleanPurl) "The gate did not ask OSV about the clean library, or did not say so: $said"
 
     # The deliberately vulnerable library is refused, naming the advisory, its alias and the version.
@@ -1779,7 +1854,7 @@ try {
     $certifiedReportHash = Get-Sha256Hex -Path $boundReportPath
     foreach ($case in @(
         @{ Name = 'omitted carried component'; Change = { param($d)
-            $d.components = @($d.components | Where-Object { $_.purl -cne 'pkg:maven/com.google.code.gson/gson@2.14.0' })
+            $d.components = @($d.components | Where-Object { $_.purl -cne 'pkg:maven/com.google.code.gson/gson@2.15.0' })
         } },
         @{ Name = 'downgraded license policy'; Change = { param($d)
             $d.metadata.properties = @($d.metadata.properties | Where-Object { $_.name -cnotlike 'hushgram:license-*' })
@@ -1863,7 +1938,7 @@ try {
     # scope. The fixture JAR embeds only the clean library's metadata, so OSV is asked nothing new.
     $desktopJar = Join-Path $advisoryRoot 'morphe-desktop-fixture.jar'
     $gsonMetadata = [ordered]@{
-        'META-INF/maven/com.google.code.gson/gson/pom.properties' = "groupId=com.google.code.gson`nartifactId=gson`nversion=2.14.0`n" }
+        'META-INF/maven/com.google.code.gson/gson/pom.properties' = "groupId=com.google.code.gson`nartifactId=gson`nversion=2.15.0`n" }
     New-TestBundleArchive -Path $desktopJar -Entries $gsonMetadata
     $desktopSubject = Get-CurrentDependencyAuditSubject -Root $inputRoot -Graphs $boundGraphs -Sbom $boundSbom `
         -BundlePath $boundBundle -DesktopJar $desktopJar
@@ -2891,7 +2966,7 @@ try {
                 $fixture.name + '/' + $fixture.version + '/' + $fixture.name + '-' + $fixture.version + '.pom')
                 sha256 = ('3' * 64); declaredLicense = 'test publisher license fixture' } }
     }
-    $baselineLicenses = @($licenseFixtures.artifacts | Where-Object purl -CEQ 'pkg:maven/com.google.code.gson/gson@2.14.0')
+    $baselineLicenses = @($licenseFixtures.artifacts | Where-Object purl -CEQ 'pkg:maven/com.google.code.gson/gson@2.15.0')
     $baselineLicenseLedger = [ordered]@{schemaVersion = 1; artifacts = $baselineLicenses}
     [IO.File]::WriteAllText($releaseLicenseLedger, ($baselineLicenseLedger | ConvertTo-Json -Depth 12),
         [Text.UTF8Encoding]::new($false))
@@ -2947,9 +3022,11 @@ try {
         -Text (Get-Content -LiteralPath (Join-Path $releaseRepo 'gradle/libs.versions.toml') -Raw)
     $releaseReceipt = Join-Path $releaseRepo "release-receipt-$releaseVersionHere.json"
     $declaredBuild = $releaseTarget.PackageVersion
+    # The arm64 build's code comes first; the other ABIs' builds are declared after it (#346).
     $declaredCode = [string]@($releaseTarget.PackageVersionCodes[$declaredBuild])[0]
+    $declaredCodes = @($releaseTarget.PackageVersionCodes[$declaredBuild]) -join ' or '
     Assert-True (@($releaseTarget.PackageVersions).Count -eq 1 -and $declaredCode -match '^\d+$') `
-        ("HushGram declares one Instagram build pinned to one version code, and the cases below are built on that. " +
+        ("HushGram declares one Instagram version, its arm64 build's code first, and the cases below are built on that. " +
             "The catalog declares $(Format-DeclaredBuilds -Target $releaseTarget).")
 
     $coverageFixture = (Get-Content (Join-Path $PSScriptRoot 'patch-coverage-expectations.json') -Raw | ConvertFrom-Json).fixtures |
@@ -2963,7 +3040,7 @@ try {
     # A receipt for this commit with a run of each build given, every patch applied and the
     # manifest changes the checked-in allowlist approves, written where the release check looks.
     $approvedDelta = [ordered]@{ permissionsAdded = @(); permissionsRemoved = @()
-        exportedComponentsAdded = @(); exportedComponentsRemoved = @(); versionCodeChanged = @() }
+        exportedComponentsAdded = @(); exportedComponentsRemoved = @(); versionCodeChanged = @(); minSdkChanged = @() }
     foreach ($entry in $checkedInAllowlist) {
         $kind, $value = $entry -split ' ', 2
         switch ($kind) {
@@ -2972,6 +3049,9 @@ try {
             'exported-added' { $approvedDelta.exportedComponentsAdded += $value }
             'exported-removed' { $approvedDelta.exportedComponentsRemoved += $value }
             'version-code' { $approvedDelta.versionCodeChanged += $value }
+            'min-sdk' {
+                if ($value -cne '28') { throw "The release fixture starts at API 28, not $value." }
+            }
             default { throw "The release fixture doesn't know the allowlist kind $kind." }
         }
     }
@@ -2981,10 +3061,12 @@ try {
             [ordered]@{
                 source        = [ordered]@{ file = "instagram-$($Builds[$i])-arm64-v8a.apkm"
                     package = $releaseTarget.PackageName; versionName = $Builds[$i]; versionCode = $code
+                    minSdkVersion = 28
                     sha256 = ([string]'ABCDEF'[$i % 6] * 64); forced = $releaseTarget.PackageVersions -notcontains $Builds[$i] }
                 patches       = @($releaseNames | ForEach-Object { [ordered]@{ name = $_; applied = $true; reason = $null } })
                 coverage      = $releaseCoverage
                 coverageReviewed = $Builds[$i] -ceq $declaredBuild -and $code -ceq $declaredCode
+                minSdkVersion = 28
                 manifestDelta = $approvedDelta
             }
         })
@@ -3126,15 +3208,15 @@ try {
     # The receipt audits the Desktop JAR it patches with, so the stand-in is a JAR whose one
     # embedded library is the clean one OSV is asked about anyway. The stub java never reads it.
     New-TestBundleArchive -Path $stubJar -Entries ([ordered]@{
-        'META-INF/maven/com.google.code.gson/gson/pom.properties' = "groupId=com.google.code.gson`nartifactId=gson`nversion=2.14.0`n" })
+        'META-INF/maven/com.google.code.gson/gson/pom.properties' = "groupId=com.google.code.gson`nartifactId=gson`nversion=2.15.0`n" })
     New-TestBundleArchive -Path (Join-Path $tools 'patched.apk') -Entries ([ordered]@{
         'AndroidManifest.xml' = 'binary manifest'; 'classes.dex' = "dex`n035" })
 
     $androidName = 'http://schemas.android.com/apk/res/android:name(0x01010003)='
     $androidExported = '          A: http://schemas.android.com/apk/res/android:exported(0x01010010)=true'
-    # Instagram asks for the three advertising ID permissions, and the patched build doesn't, and
-    # carries the raised version code: the changes the checked-in allowlist approves, and the only
-    # ones the patches make here.
+    # Instagram asks for the three advertising ID permissions, and the patched build doesn't, carries
+    # the raised version code and exports the four icon aliases: the changes the checked-in
+    # allowlist approves, and the only ones the patches make here.
     function Get-FixtureManifest([string]$Build, [string]$Code, [switch]$WithSplit, [switch]$Patched,
             [string]$Package = $releaseTarget.PackageName) {
         $permissions = @('android.permission.INTERNET')
@@ -3145,7 +3227,9 @@ try {
             '  E: manifest (line=1)',
             "    A: http://schemas.android.com/apk/res/android:versionCode(0x0101021b)=$Code",
             "    A: http://schemas.android.com/apk/res/android:versionName(0x0101021c)=`"$Build`" (Raw: `"$Build`")",
-            "    A: package=`"$Package`" (Raw: `"$Package`")")
+            "    A: package=`"$Package`" (Raw: `"$Package`")",
+            '      E: uses-sdk (line=3)',
+            '        A: http://schemas.android.com/apk/res/android:minSdkVersion(0x0101020c)=28')
         $line = 10
         foreach ($permission in $permissions) {
             $lines += @("      E: uses-permission (line=$line)", "        A: $androidName`"$permission`" (Raw: `"$permission`")")
@@ -3156,6 +3240,15 @@ try {
             '        E: activity (line=21)',
             "          A: $androidName`"com.example.host.Main`" (Raw: `"com.example.host.Main`")",
             $androidExported)
+        if ($Patched) {
+            $aliasLine = 30
+            foreach ($alias in @($iconAliasEntries -replace '^exported-added activity-alias:', '')) {
+                $lines += @("        E: activity-alias (line=$aliasLine)",
+                    "          A: $androidName`"$alias`" (Raw: `"$alias`")",
+                    $androidExported)
+                $aliasLine++
+            }
+        }
         if ($WithSplit) {
             $lines += @('        E: activity (line=40)',
                 "          A: $androidName`"com.example.split.FeatureActivity`" (Raw: `"com.example.split.FeatureActivity`")",
@@ -3209,6 +3302,20 @@ try {
     Assert-True (-not $stepless.Valid -and $stepless.Reason -match 'step') "A result with no step list passed: $($stepless.Reason)"
     Assert-True (-not (Test-StepReport @($passed, [pscustomobject]@{ step = 'REBUILDING'; success = $false })).Valid) `
         'A result whose rebuild step failed passed.'
+    # A catalog, report or record that reads two ways proves neither, so the legacy readers take strict JSON only.
+    $slash = [string][char]92
+    foreach ($loose in @('{"success":false,"success":true}', '{"a":[{"b":1},{"b":1,"b":2}]}', '{"Name":1,"name":2}',
+        ('{"a":1,"' + $slash + 'u0061":2}'), '[{"a":1}]', '{"a":1} {"a":2}', ('{"a":1 // note' + "`n" + '}'), '{"a":/* note */1}',
+        "{'a':1}", '{a:1}', '{"a":1,}', '{"a":tru}', '', '{"a":[1,]}', '{"a":[,1]}', '{"a":[1,,2]}', '{"a":,"b":1}', '{"a":}')) {
+        $refused = $null
+        try { [void](ConvertFrom-PatchJson $loose) } catch { $refused = $_.Exception.Message }
+        Assert-True ($refused -like 'The JSON *') "Loose or ambiguous JSON was read, or refused by another parser: $loose ($refused)"
+    }
+    $strict = ConvertFrom-PatchJson ('{"success":true,"stepResults":[{"step":"PATCHING","success":true},{"step":"WRITING","success":false}],' +
+        '"name":"' + $slash + 'u00e9 ' + $slash + '"q' + $slash + '"","empty":{},"list":[],"nest":[[],[{}],[1,[2]]],"size":-1.5e2,"none":null}')
+    Assert-True ($strict.success -eq $true -and $strict.stepResults.Count -eq 2 -and $strict.stepResults[1].step -ceq 'WRITING' -and
+        $strict.stepResults[1].success -eq $false -and $strict.name -ceq ([string][char]0xe9 + ' "q"') -and $strict.size -eq -150 -and
+        $null -eq $strict.none -and $strict.nest.Count -eq 3 -and $strict.nest[2][1][0] -eq 2) 'A strict document did not read unchanged.'
     # And another build of the declared version, as APKMirror lists several arm64 builds of one
     # Instagram release: the declared name at a code the catalog doesn't pin. Only its base
     # manifest, since the builder has to refuse it before anything is merged or patched.
@@ -3322,7 +3429,11 @@ try {
         Assert-True (@($builtTarget.patches | Where-Object { $_.applied }).Count -eq $releaseNames.Count) `
             "The receipt does not record every patch applied to $label."
         $changes = @(ConvertTo-ManifestDeltaEntries -Delta $builtTarget.manifestDelta)
-        Assert-True (($changes -join "`n") -ceq (@($checkedInAllowlist | Sort-Object -Unique -CaseSensitive) -join "`n")) `
+        # These generated APK fixtures already require API 28, so no min-sdk delta is expected.
+        Assert-True ($builtTarget.source.minSdkVersion -eq 28 -and $builtTarget.minSdkVersion -eq 28) `
+            'The receipt builder lost its input/output SDK floor proof.'
+        Assert-True (($changes -join "`n") -ceq (@($checkedInAllowlist | Where-Object { $_ -cne 'min-sdk 28' } |
+                Sort-Object -Unique -CaseSensitive) -join "`n")) `
             ("The receipt records other manifest changes for $label than the advertising ID removals and the raised " +
                 "version code: $($changes -join ', ')")
     }
@@ -3422,7 +3533,7 @@ try {
         'build-release-receipt.ps1 went ahead with a fixture of the newer build only.'
     Assert-True (-not (Test-Path -LiteralPath $javaLog)) 'build-release-receipt.ps1 patched before it found the declared build missing.'
     $variantRefusal = "*No fixture is the declared $($releaseTarget.PackageName) $declaredBuild*" +
-        "$declaredBuild ($declaredCode)*$declaredBuild ($variantCode)*Nothing was patched*"
+        "$declaredBuild ($declaredCodes)*$declaredBuild ($variantCode)*Nothing was patched*"
     Assert-Throws { Invoke-ReceiptBuilder -Fixtures @($variantApkm) } $variantRefusal `
         'build-release-receipt.ps1 took another build of the declared version for the declared one.'
     Assert-True (-not (Test-Path -LiteralPath $javaLog)) 'build-release-receipt.ps1 patched another build of the declared version.'
@@ -3592,7 +3703,9 @@ try {
     $gateBundleBytes = [System.IO.File]::ReadAllBytes($gateBundle)
     $releaseBundleBytes = [System.IO.File]::ReadAllBytes($releaseBundle)
     $releaseSbomBytes = [System.IO.File]::ReadAllBytes($releaseSbom)
-    $gateAllowlist = @($checkedInAllowlist | Sort-Object -Unique -CaseSensitive) -join "`n"
+    # The saved-gate APK fixtures start at API 28, so the SDK floor is proved without a delta.
+    $gateAllowlist = @($checkedInAllowlist | Where-Object { $_ -cne 'min-sdk 28' } |
+        Sort-Object -Unique -CaseSensitive) -join "`n"
     try {
         Remove-Item -LiteralPath $releaseReceipt -Force
         Invoke-ReceiptBuilder -Fixtures $allFixtures -FromGate
@@ -3611,6 +3724,7 @@ try {
         $gateTarget = @($gateReceipt.targets | Where-Object { [string]$_.source.versionName -eq $declaredBuild })
         Assert-True (@($gateReceipt.targets).Count -eq 2 -and $gateTarget.Count -eq 1 -and -not $gateTarget[0].source.forced -and
             $gateTarget[0].source.sha256 -eq (Get-Sha256Hex -Path $declaredFixture) -and
+            $gateTarget[0].source.minSdkVersion -eq 28 -and $gateTarget[0].minSdkVersion -eq 28 -and
             @($gateTarget[0].patches | Where-Object { $_.applied }).Count -eq $releaseNames.Count -and
             (@(ConvertTo-ManifestDeltaEntries -Delta $gateTarget[0].manifestDelta) -join "`n") -ceq $gateAllowlist) `
             "The receipt read from the gate's run does not record the declared build as a run here does: $($gateTarget | ConvertTo-Json -Depth 6 -Compress)"
@@ -3824,7 +3938,7 @@ try {
             "*Morphe Manager can read the $releaseVersionHere entry*",
             "*the hosted release-receipt-$releaseVersionHere.json is the receipt checked here, as SHA256SUMS.txt lists it*",
             "*the hosted patches-$releaseVersionHere.cdx.json is the SBOM the receipt names and SHA256SUMS.txt lists*",
-            "*OSV has no advisory for the libraries patches-$releaseVersionHere.cdx.json lists: gson 2.14.0*")) {
+            "*OSV has no advisory for the libraries patches-$releaseVersionHere.cdx.json lists: gson 2.15.0*")) {
         Assert-True ($said -like $expected) "The index push after the release did not say $expected`: $said"
     }
     # The hosted asset checked on its own, from a checkout with no bundle built for it: the hook's

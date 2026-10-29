@@ -46,7 +46,7 @@ final class ProfilesCategory {
                 profiles.addPreference(followLabelPlaceRow(context));
                 if (PatchFamily.followingListMarkInBuild()) {
                     profiles.addPreference(toggle(context, Settings.MARK_FOLLOWING_LIST, L10n.t("Mark who doesn't follow you back"),
-                            L10n.t("On your own Following list, adds Doesn't follow you after the name of each account that "
+                            L10n.t("On your own Following list, adds Doesn't follow you before the name of each account that "
                                     + "doesn't follow you back. Nothing shows until Instagram has checked.")));
                     profiles.addPreference(toggle(context, Settings.FOLLOWING_NOT_BACK_FIRST, L10n.t("Put accounts that don't follow you back first"),
                             L10n.t("On your own Following list, moves the accounts that don't follow you back to the top and "
@@ -84,19 +84,7 @@ final class ProfilesCategory {
                         L10n.t("Hide Complete your profile"),
                         L10n.t("Takes the Complete your profile cards, like Add bio and Find people to follow, off "
                                 + "your own profile. Your bio, counts and posts stay.")));
-                profiles.addPreference(toggle(context, Settings.HIDE_FOLLOW_BACK_SUGGESTIONS,
-                        L10n.t("Hide People you don't follow back"),
-                        L10n.t("Takes the People you don't follow back section off the bottom of your notifications. "
-                                + "Notifications about new followers stay.")));
-                profiles.addPreference(toggle(context, Settings.HIDE_NOTIFICATION_SUGGESTIONS,
-                        L10n.t("Hide suggestions in notifications"),
-                        L10n.t("Takes rows that only suggest something off your notifications, like a thread from an "
-                                + "account you don't follow or someone you might know. Likes, comments, mentions and "
-                                + "new followers stay.")));
-                profiles.addPreference(toggle(context, Settings.HIDE_NOTIFICATION_FEATURED,
-                        L10n.t("Hide Featured in notifications"),
-                        L10n.t("Takes the Featured section off the top of your notifications, the posts and threads "
-                                + "Instagram picks to show you there. Everything under it stays.")));
+                // The family's switches for the Notifications page are under Notifications.
             }
             if (build.contains(PatchFamily.PROFILE_HIGHLIGHTS)) {
                 profiles.addPreference(toggle(context, Settings.HIDE_HIGHLIGHTS, L10n.t("Hide highlights"),
@@ -104,7 +92,8 @@ final class ProfilesCategory {
                                 + "posts stay, and so does Add to highlight on your stories.")));
             }
             if (build.contains(PatchFamily.PROFILE_TABS)) {
-                profiles.addPreference(page.profileTabsRow(context));
+                profiles.addPreference(page.ownProfileTabsRow(context));
+                profiles.addPreference(page.otherProfileTabsRow(context));
             }
             if (build.contains(PatchFamily.SAVED_ON_PROFILE)) {
                 profiles.addPreference(toggle(context, Settings.SAVED_ON_PROFILE, L10n.t("Saved tab on your profile"),

@@ -82,13 +82,14 @@ $Java = Resolve-Java -Explicit $Java
 $DesktopJar = Resolve-DesktopCli -Explicit $DesktopJar -Root $root -Required
 $catalogPath = Join-Path $root 'patches-list.json'
 if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) { throw "No patch list found: $catalogPath" }
-try { $catalog = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json }
+try { $catalog = ConvertFrom-PatchJson (Get-Content -LiteralPath $catalogPath -Raw) }
 catch { throw "Could not read patch list ${catalogPath}: $($_.Exception.Message)" }
 $target = Get-PatchTarget -PatchList $catalog
 if (-not $Apk -and $env:HUSHGRAM_FIXTURE_DIR -and (Test-Path -LiteralPath $env:HUSHGRAM_FIXTURE_DIR -PathType Container)) {
-    $Apk = (Get-ChildItem -LiteralPath $env:HUSHGRAM_FIXTURE_DIR `
-        -File | Where-Object { $_.Name -like "*$($target.PackageVersion)*" -and $_.Extension -in '.apk', '.apkm' } |
-        Select-Object -First 1).FullName
+    # The fixture the gate and the receipt patch, pinned version code and .apks included. A name
+    # match on the version alone skipped Instagram 453's .apks and could take another build's file.
+    $fixtureFile = Find-DeclaredFixture -Target $target -Version $target.PackageVersion -Folder $env:HUSHGRAM_FIXTURE_DIR
+    if ($fixtureFile) { $Apk = $fixtureFile.FullName }
 }
 if (-not $Apk -or -not (Test-Path -LiteralPath $Apk -PathType Leaf)) {
     throw ("No vendor APK. Pass -Apk with the $($target.PackageVersion) build, or set " +
@@ -211,11 +212,15 @@ try {
 # The same report check the throwaway verification applies: every requested patch, every
 # step, the target, and a real APK. The build that goes onto a phone deserves no less.
 $report = $null
-if (Test-Path -LiteralPath $result -PathType Leaf) { $report = Get-Content -LiteralPath $result -Raw | ConvertFrom-Json }
+if (Test-Path -LiteralPath $result -PathType Leaf) {
+    try { $report = ConvertFrom-PatchJson (Get-Content -LiteralPath $result -Raw) }
+    catch { throw "Patching did not produce a complete APK: the patch result doesn't parse ($($_.Exception.Message))" }
+}
 $validation = Test-PatchingReport -Report $report -ExpectedNames $names `
     -AllowedDependencyNames $dependencyNames -OutputPath $out `
     -ExpectedPackageName $target.PackageName -ExpectedPackageVersion $stock.versionName
 if (-not $validation.Valid) { throw "Patching did not produce a complete APK: $($validation.Reason)" }
+Assert-HushgramRuntimeFloor -Manifest (Get-ApkManifestFacts -Apk $out -Aapt2 $Aapt2) -Stock $stock
 $coverage = @(Get-ApkTargetCoverage -Apk $out -Java $Java -DesktopJar $DesktopJar -Names $names)
 $coverageVerdict = Test-TargetCoverage -Coverage $coverage -Names $names -Package $stock.package `
     -VersionName $stock.versionName -VersionCode $stock.versionCode

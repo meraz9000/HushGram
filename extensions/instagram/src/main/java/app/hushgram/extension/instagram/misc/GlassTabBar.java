@@ -28,6 +28,7 @@ import android.graphics.RenderNode;
 import android.graphics.Shader;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -94,8 +95,9 @@ import app.hushgram.extension.shared.settings.HushgramPause;
  *
  * <p>What the pill blurs is Instagram's own screens, the views drawn under the bar, recorded into a render node of its own and blurred
  * on the GPU, never read back from the screen. It's the views as they draw, so photos, text and video
- * in a TextureView come through. A video in a SurfaceView is left out and shows through the tint
- * instead, so the glass stays glass over videos. A docked bar's glass shows the strip just above it, upside down.
+ * in a TextureView come through. A video in a SurfaceView can't be recorded, so the glass draws a small
+ * copy of its frame in its place ({@link SurfaceFrames}, #144), and leaves the place clear until one lands,
+ * so the glass stays glass over videos. A docked bar's glass shows the strip just above it, upside down.
  * With the float switch on, the content container also runs to the bottom of the screen and the glass shows
  * what's behind it (#262), so nothing of Instagram's own colour is left round the pill. Reels are the one
  * screen left out: the Reels viewer stops at the top of the pill's slot, at one size whether the pill
@@ -128,6 +130,8 @@ public final class GlassTabBar {
     static final String REEL_FOOTERS = "clips_footer_mask_container";
     /** The Search tab, a child of the bar, which the liquid look puts in a circle of its own (#65). */
     static final String SEARCH_TAB = "search_tab";
+    /** The Reels tab, a child of the bar. With it selected a reel keeps the pill's slot while the bar hides (#347). */
+    static final String REELS_TAB = "clips_tab";
     /**
      * Where Instagram puts a bottom sheet (comments, share, a post's menu) over the screens and the bar.
      * It has a child only while a sheet is up (#209).
@@ -198,6 +202,24 @@ public final class GlassTabBar {
     static int reelsAboveTheBar(View root, View bar, int id, int wanted, java.util.Map<View, Integer> given,
             @Nullable java.util.Collection<View> seen) {
         return liftReels(root, bar, id, wanted, given, seen, 0);
+    }
+
+    /**
+     * Whether the Reels viewers keep the pill's slot under them: while [bar] shows, sliding away or not
+     * (#170), or with the Reels tab ([reelsTab]) selected, where Instagram hides the bar for a paused reel
+     * and the viewer keeps one size (#221). A reel opened from a feed post has Instagram hide the bar
+     * over Home, and the slot kept there was a blank band under the reel (#347).
+     */
+    static boolean reelsKeepTheSlot(View bar, int reelsTab) {
+        if (bar.getVisibility() == View.VISIBLE) return true;
+        if (reelsTab == 0 || !(bar instanceof ViewGroup)) return false;
+        ViewGroup tabs = (ViewGroup) bar;
+        for (int i = 0; i < tabs.getChildCount(); i++) {
+            View tab = tabs.getChildAt(i);
+            // A Reels tab tucked out of the bar (Tab order) is still the tab Instagram shows when selected.
+            if (tab.getId() == reelsTab && tab.isSelected()) return true;
+        }
+        return false;
     }
 
     private static int liftReels(View view, View bar, int id, int wanted, java.util.Map<View, Integer> given,
@@ -356,6 +378,33 @@ public final class GlassTabBar {
         return true;
     }
 
+    /**
+     * Makes the ring round [badge] clear (#315): a GradientDrawable background gets a clear stroke
+     * [width] wide. One not in [cleared] is cleared as usual and added, and that's the true answer.
+     * One cleared before is cleared again only while the badge waits to redraw, and without asking for
+     * a frame: Instagram strokes a dot again in place when a tab is picked, and asks for the redraw
+     * itself, while a frame asked for here would come back here and ask for another.
+     */
+    static boolean clearRing(View badge, int width, java.util.Set<Drawable> cleared) {
+        Drawable background = badge.getBackground();
+        if (!(background instanceof GradientDrawable)) return false;
+        // Mutated first: a dot's drawable comes from Instagram's resources, shared with every other dot.
+        GradientDrawable ring = (GradientDrawable) background.mutate();
+        if (cleared.add(ring)) {
+            ring.setStroke(width, Color.TRANSPARENT);
+            return true;
+        }
+        if (!badge.isDirty()) return false;
+        Drawable.Callback callback = ring.getCallback();
+        ring.setCallback(null);
+        try {
+            ring.setStroke(width, Color.TRANSPARENT);
+        } finally {
+            ring.setCallback(callback);
+        }
+        return false;
+    }
+
     /** Whether [drawable] is a ripple with nothing in it but its mask: a touch's feedback, which draws nothing at rest. */
     static boolean touchFeedbackOnly(Drawable drawable) {
         if (!(drawable instanceof RippleDrawable)) return false;
@@ -449,18 +498,28 @@ public final class GlassTabBar {
     /**
      * Draws [view] into [canvas] where its parent would, leaving out the SurfaceViews in [paths]. A view on
      * the way down to one is drawn piece by piece, its background and then each child, and any other view
-     * draws itself whole. A video in a SurfaceView is a layer under the window, never in the views, so
-     * nothing of it is lost: the pill shows it through its tint, unblurred.
+     * draws itself whole. A video in a SurfaceView is a layer under the window, never in the views, so its
+     * place is cleared, the way the SurfaceView clears its hole in the window, and the pill shows the video
+     * through its tint. Before, the backgrounds round the video drew there, black on a feed post (#144).
      */
     static void drawLeavingOutSurfaces(Canvas canvas, View view, java.util.Set<View> paths, int depth) {
-        drawLeavingOutSurfaces(canvas, view, paths, java.util.Collections.emptySet(), depth);
+        drawLeavingOutSurfaces(canvas, view, paths, java.util.Collections.emptySet(), null, depth);
     }
 
     /** {@link #drawLeavingOutSurfaces}, leaving out the views in [skipped] too ({@link #leaveOut}). */
     static void drawLeavingOutSurfaces(Canvas canvas, View view, java.util.Set<View> paths, java.util.Set<View> skipped,
             int depth) {
-        if (view.getVisibility() != View.VISIBLE || view.getAlpha() <= 0f || view instanceof android.view.SurfaceView
-                || skipped.contains(view)) return;
+        drawLeavingOutSurfaces(canvas, view, paths, skipped, null, depth);
+    }
+
+    /** {@link #drawLeavingOutSurfaces}, drawing the frame [frames] has for a SurfaceView in its place, when it has one ({@link SurfaceFrames}). */
+    static void drawLeavingOutSurfaces(Canvas canvas, View view, java.util.Set<View> paths, java.util.Set<View> skipped,
+            @Nullable java.util.function.Function<View, android.graphics.Bitmap> frames, int depth) {
+        if (view.getVisibility() != View.VISIBLE || view.getAlpha() <= 0f || skipped.contains(view)) return;
+        if (view instanceof android.view.SurfaceView) {
+            drawSurfacePlace(canvas, view, frames == null ? null : frames.apply(view));
+            return;
+        }
         int saved = canvas.save();
         canvas.translate(view.getLeft(), view.getTop());
         if (!view.getMatrix().isIdentity()) canvas.concat(view.getMatrix());
@@ -474,9 +533,27 @@ public final class GlassTabBar {
             if (background != null) background.draw(canvas);
             canvas.translate(-view.getScrollX(), -view.getScrollY());
             for (int i = 0, n = group.getChildCount(); i < n; i++) {
-                drawLeavingOutSurfaces(canvas, group.getChildAt(i), paths, skipped, depth + 1);
+                drawLeavingOutSurfaces(canvas, group.getChildAt(i), paths, skipped, frames, depth + 1);
             }
         }
+        canvas.restoreToCount(saved);
+    }
+
+    private static final Paint SURFACE_CLEAR = new Paint();
+    private static final Paint SURFACE_FRAME = new Paint(Paint.FILTER_BITMAP_FLAG);
+
+    static {
+        SURFACE_CLEAR.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR));
+    }
+
+    /** Draws [frame] over [surface]'s place, stretched to it, or clears the place when there's no frame. */
+    private static void drawSurfacePlace(Canvas canvas, View surface, @Nullable android.graphics.Bitmap frame) {
+        int saved = canvas.save();
+        canvas.translate(surface.getLeft(), surface.getTop());
+        if (!surface.getMatrix().isIdentity()) canvas.concat(surface.getMatrix());
+        RectF place = new RectF(0, 0, surface.getWidth(), surface.getHeight());
+        if (frame != null && !frame.isRecycled()) canvas.drawBitmap(frame, null, place, SURFACE_FRAME);
+        else canvas.drawRect(place, SURFACE_CLEAR);
         canvas.restoreToCount(saved);
     }
 
@@ -521,6 +598,13 @@ public final class GlassTabBar {
     /** The selected tab's capsule sits 4dp in from the pill's top and bottom and stands 4dp past its slot. */
     static final int HIGHLIGHT_INSET_DP = 4;
     static final int HIGHLIGHT_GROW_DP = 4;
+    /**
+     * The ids of Instagram's count and dot badges on a tab, which it rings in the bar's own colour so a
+     * badge stands off the icon. On the glass that ring shows as a solid outline (#315), so it goes clear.
+     */
+    static final String[] BADGES = {"notification", "led_badge"};
+    /** The ring's width, as Instagram draws it for both badges. A clear stroke keeps it, so the badge keeps its size. */
+    static final int BADGE_RING_DP = 2;
 
     /** The blur is worked out at a quarter of the size, which also blurs it more for the same work. */
     static final int DOWNSAMPLE = 4;
@@ -574,6 +658,8 @@ public final class GlassTabBar {
     static final long FOOTER_REDRAW_MS = 500;
     /** Counted each time a video in a SurfaceView shows up under the bar, with none there before, and is kept out of the blur. */
     static final String COUNT_VIDEO_LEFT_OUT = "Video kept out of the blur";
+    /** Counted the first time a frame of a video in a SurfaceView under the bar is copied into the blur, each time one comes under it (#144). */
+    static final String COUNT_VIDEO_COPIED = "Video frame copied into the blur";
     /** Counted each time the blur fails {@link #BLUR_TRIES} recordings in a row and rests on the plain tint. */
     static final String COUNT_BLUR_RESTED = "Blur rested after failing";
     /** Counted each time a tab's own background, Instagram's selected tab capsule, is taken off under the pill. */
@@ -590,6 +676,8 @@ public final class GlassTabBar {
     static final String COUNT_STORY_ASIDE = "Bar hidden over a story";
     /** Counted once for each bar whose Search tab the liquid look puts in a circle of its own (#65). */
     static final String COUNT_SEARCH_APART = "Search put in its own circle";
+    /** Counted each time a tab badge's ring, new to the glass, is made clear (#315). */
+    static final String COUNT_BADGE_RING = "Tab badge's ring made clear";
 
     /** Liquid look (#65): the clear gap between the pill and Search's circle beside it. */
     static final int SEARCH_GAP_DP = 8;
@@ -603,7 +691,8 @@ public final class GlassTabBar {
     private static WeakReference<Activity> front = new WeakReference<>(null);
     /**
      * The navigation bar's height Instagram would have padded its screens by when it was last answered
-     * 0 for a floating pill, or 0 when it was given through. The pill makes this much room of its own
+     * 0 for a floating pill, or the height of the bar HushGram's full screen hides under one (#285), or 0
+     * when it was given through. The pill makes this much room of its own
      * under itself, and keeps it while a bottom sheet over it has the height given through, so it stays
      * where it was as the sheet slides away. Main thread, as Instagram's insets listener is.
      */
@@ -643,8 +732,9 @@ public final class GlassTabBar {
         try {
             if (!Utils.settingsReady()) return;
             if (!Settings.GLASS_TAB_BAR.get()) {
-                // Instagram's own bar can still slide across its tabs (#201).
+                // Instagram's own bar can still slide across its tabs (#201) and hide as you scroll (#343).
                 PlainTabSlide.apply(activity);
+                PlainScrollHide.apply(activity);
                 return;
             }
             View found = find(activity.getWindow().getDecorView(), TAB_BAR);
@@ -681,11 +771,30 @@ public final class GlassTabBar {
      * its cover (#222).
      */
     public static int navBarHeight(int height) {
-        Glass glass = height <= 0 ? null : floatingGlassInFront();
+        return navBarHeight(height, 0);
+    }
+
+    /**
+     * {@link #navBarHeight(int)} with [hidden], the height of a navigation bar HushGram's full screen
+     * hides, or 0. Instagram is answered 0 for a hidden bar and its screens already run to the edge, so a
+     * floating pill gave up the bar's room there and dropped by the bar's height with every switch to
+     * Reels with Full screen Reels on, then rose again on Home (#285). It keeps that room under itself
+     * instead, so it sits at one height on every tab and stays clear of the bar when it's swiped in, and
+     * the Reels viewer still stops at its top ({@link #reelsMargin}). A sheet over it keeps no room, as
+     * there's no bar for it to stop above.
+     */
+    public static int navBarHeight(int height, int hidden) {
+        Glass glass = height <= 0 && hidden <= 0 ? null : floatingGlassInFront();
         if (glass == null) {
             navTaken = 0;
             sheetRoom = 0;
             navGiven = Math.max(0, height);
+            return height;
+        }
+        if (height <= 0) {
+            navTaken = hidden;
+            sheetRoom = 0;
+            navGiven = 0;
             return height;
         }
         navTaken = height;
@@ -856,6 +965,10 @@ public final class GlassTabBar {
         navTaken = 0;
         sheetRoom = 0;
         navGiven = 0;
+        for (WeakReference<Glass> held : new java.util.ArrayList<>(applied.values())) {
+            Glass glass = held.get();
+            if (glass != null) glass.pill.cancelCatchUp();
+        }
     }
 
     static void diagnose(String what, @Nullable Throwable failure) {
@@ -1018,6 +1131,7 @@ public final class GlassTabBar {
         } catch (Throwable failure) {
             HookStatus.threw(FamilyNames.GLASS_TAB_BAR, "restore", failure);
         }
+        PlainScrollHide.restoreAll();
     }
 
     /**
@@ -1113,6 +1227,8 @@ public final class GlassTabBar {
         private final ViewGroup bar;
         private final float density;
         private final boolean blurWanted;
+        /** How strongly the glass blurs what's behind it (#289). */
+        private final GlassBlur blurStrength;
         private final boolean haptics;
         private final HapticStyle hapticStyle;
         private final GlassOpacity opacity;
@@ -1221,6 +1337,8 @@ public final class GlassTabBar {
         private float compact;
         @Nullable private ValueAnimator compacting;
         /** The translation and alpha the liquid look gave each tab, and the tabs it put out of a touch's reach, so only what it did is undone. */
+        /** The badge backgrounds whose ring this bar has made clear. */
+        private final java.util.Set<Drawable> rings = java.util.Collections.newSetFromMap(new WeakHashMap<>());
         private final WeakHashMap<View, Float> shifted = new WeakHashMap<>();
         private final WeakHashMap<View, Float> faded = new WeakHashMap<>();
         private final WeakHashMap<View, Boolean> tucked = new WeakHashMap<>();
@@ -1241,6 +1359,7 @@ public final class GlassTabBar {
             this.opacity = Settings.GLASS_TAB_BAR_OPACITY.get();
             this.height = Settings.GLASS_TAB_BAR_HEIGHT.get();
             this.corners = Settings.GLASS_TAB_BAR_CORNERS.get();
+            this.blurStrength = Settings.GLASS_TAB_BAR_BLUR_STRENGTH.get();
             this.lift = liftPx(Settings.GLASS_TAB_BAR_LIFT.get(), floating, density);
             this.room = lift;
             this.liquid = Settings.GLASS_TAB_BAR_LIQUID.get();
@@ -1601,6 +1720,17 @@ public final class GlassTabBar {
             return pillInsetPx(height, bar.getHeight() - room, gap(), density);
         }
 
+        /** Makes the ring of each badge on [tab] clear, as {@link #clearRing} does. */
+        private void clearBadgeRings(View tab) {
+            for (String name : BADGES) {
+                int badge = id(tab.getContext(), name);
+                View found = badge == 0 ? null : tab.findViewById(badge);
+                if (found != null && clearRing(found, dp(BADGE_RING_DP), rings)) {
+                    HookStatus.counted(FamilyNames.GLASS_TAB_BAR, COUNT_BADGE_RING);
+                }
+            }
+        }
+
         /** The colour Instagram gave the bar, or white or black by the theme when it wasn't a plain one. */
         private int baseColor(@Nullable Drawable background) {
             if (background instanceof ColorDrawable) return ((ColorDrawable) background).getColor() | 0xff000000;
@@ -1620,6 +1750,7 @@ public final class GlassTabBar {
             // ripple is the tab's touch feedback, not a capsule, and stays.
             for (int i = 0; i < bar.getChildCount(); i++) {
                 View tab = bar.getChildAt(i);
+                clearBadgeRings(tab);
                 Drawable own = tab.getBackground();
                 if (own == null || touchFeedbackOnly(own)) continue;
                 tab.setBackground(null);
@@ -1729,11 +1860,14 @@ public final class GlassTabBar {
          * the reel centred that much lower, with a wide black band over it (#280), and had the glass
          * drawing the reel's video into its blur (#222). The views are walked for viewers at most every
          * {@link #REELS_LOOK_MS}, and at once when the margin they want changes, so a viewer is never left
-         * a frame at a size Instagram's own layout just gave it.
+         * a frame at a size Instagram's own layout just gave it. Where Instagram hides the bar outside the
+         * Reels tab, as over a reel opened from a feed post, the viewers get Instagram's 0 back
+         * ({@link #reelsKeepTheSlot}, #347).
          */
         private void keepReelsAboveTheSlot(View holder, long now) {
             if (originalBarHeight <= 0) return;
-            int wanted = reelsMargin(barHeightPx(height, originalBarHeight, density) + lift);
+            int wanted = reelsKeepTheSlot(bar, id(holder.getContext(), REELS_TAB))
+                    ? reelsMargin(barHeightPx(height, originalBarHeight, density) + lift) : 0;
             if (wanted == reelsWanted && now - reelsLookedAt < REELS_LOOK_MS) return;
             reelsLookedAt = now;
             reelsWanted = wanted;
@@ -2020,6 +2154,10 @@ public final class GlassTabBar {
          */
         private void recordUnder() {
             if (!blurWanted) return;
+            if (HushgramPause.isPaused()) {
+                pill.cancelCatchUp();
+                return;
+            }
             try {
                 if (scrollHide == null || !scrollHide.isOffScreen()) pill.recordIfDue();
                 else pill.recordIfSurfaceAppeared();
@@ -2037,7 +2175,7 @@ public final class GlassTabBar {
             HookStatus.threw(FamilyNames.GLASS_TAB_BAR, what, failure);
             diagnose(what + " failed", failure);
             if (tries.failed(SystemClock.uptimeMillis())) HookStatus.counted(FamilyNames.GLASS_TAB_BAR, COUNT_BLUR_RESTED);
-            else pill.retrySoon();
+            pill.retrySoon();
         }
 
         /** The tab Instagram marks selected, or null. */
@@ -2100,12 +2238,26 @@ public final class GlassTabBar {
             /** Where the capsule is sliding from and to, and when the slide started, on the frame clock. */
             private float fromLeft = Float.NaN, fromRight, toLeft, toRight, nowLeft, nowRight;
             private long slideStart;
+            /** The size the liquid look's bubble is drawn at now, and at when the slide it is in began (#289). */
+            private float bubbleNow = 1f, bubbleFrom = 1f;
+            /** Whether the blurred backdrop was drawn into the pill this frame, which the bubble's lens needs. */
+            private boolean blurShown;
+            @Nullable private GlassLens lens;
+            private final Paint bubbleSheen = new Paint(Paint.ANTI_ALIAS_FLAG);
+            private final Paint bubbleRim = new Paint(Paint.ANTI_ALIAS_FLAG);
+            private final Matrix bubbleMatrix = new Matrix();
+            private int bubbleShade;
             /** The tab the capsule's middle was over when it last ticked, or -1 before the first frame. */
             private int tickedTab = -1;
             private boolean reported;
 
             PillDrawable() {
                 stroke.setStyle(Paint.Style.STROKE);
+                WeakReference<PillDrawable> held = new WeakReference<>(this);
+                catchUp = () -> {
+                    PillDrawable current = held.get();
+                    if (current != null) current.catchUp();
+                };
             }
 
             @Override public void draw(@NonNull Canvas canvas) {
@@ -2181,6 +2333,7 @@ public final class GlassTabBar {
                     blurred = drawBackdrop(canvas);
                     canvas.restoreToCount(saved);
                 }
+                blurShown = blurred;
                 fill.setColor(tint(base, blurred, opacity));
                 canvas.drawPath(shapes, fill);
                 keepSheen(dark);
@@ -2262,10 +2415,12 @@ public final class GlassTabBar {
                     fromRight = nowRight = toRight = toLeft + width;
                     slideStart = now - SLIDE_MS;
                     tickedThisSlide = false;
+                    bubbleNow = bubbleFrom = 1f + BUBBLE_SWELL;
                 } else if (Float.isNaN(fromLeft) || share < 1f) {
                     fromLeft = nowLeft = toLeft = targetLeft;
                     fromRight = nowRight = toRight = targetRight;
                     slideStart = now - SLIDE_MS;
+                    bubbleNow = bubbleFrom = 1f;
                 } else if (Math.abs(targetLeft - toLeft) > 0.5f || Math.abs(targetRight - toRight) > 0.5f) {
                     tickedThisSlide = false;
                     fromLeft = nowLeft;
@@ -2273,8 +2428,12 @@ public final class GlassTabBar {
                     toLeft = targetLeft;
                     toRight = targetRight;
                     slideStart = slideStartAt(now);
+                    bubbleFrom = bubbleNow;
                 }
                 float progress = slideProgress(now - slideStart);
+                boolean bubble = liquidNow() && share > 0f;
+                if (Float.isNaN(dragX)) bubbleNow = bubble ? bubbleScale(now - slideStart, bubbleFrom) : 1f;
+                else if (!bubble) bubbleNow = bubbleFrom = 1f;
                 nowLeft = fromLeft + (toLeft - fromLeft) * progress;
                 nowRight = fromRight + (toRight - fromRight) * progress;
                 capsule.set(nowLeft, within.top + inset, nowRight, within.bottom - inset);
@@ -2282,8 +2441,65 @@ public final class GlassTabBar {
                 int color = highlight(base);
                 if (share < 1f) color = (color & 0x00ffffff) | (scaledAlpha(Color.alpha(color), Math.max(0f, share)) << 24);
                 fill.setColor(color);
+                if (bubble && bubbleNow != 1f) {
+                    float swell = (bubbleNow - 1f) / 2f;
+                    capsule.inset(-capsule.width() * swell, -capsule.height() * swell);
+                    corner *= bubbleNow;
+                }
+                if (bubble) paintLens(canvas, corner);
+                fill.setColor(color);
                 if (share > 0f) canvas.drawRoundRect(capsule, corner, corner, fill);
+                if (bubble) paintBubble(canvas, corner, share);
                 if (progress < 1f) invalidateSelf();
+            }
+
+            /**
+             * The lens under the bubble (#289): the blurred backdrop magnified a little, on Android 13 and newer and
+             * only where the pill is blurred. The pill's tint goes back over it so the bubble reads as part of the pill.
+             */
+            private void paintLens(Canvas canvas, float corner) {
+                if (!blurShown || !GlassLens.supported()) return;
+                GlassLens made = lens;
+                if (made == null) {
+                    made = new GlassLens();
+                    lens = made;
+                }
+                if (made.paint(canvas, node, nodeLeft, nodeTop, DOWNSAMPLE, bar.getWidth(), bar.getHeight(), capsule, corner)) {
+                    fill.setColor(tint(base, true, opacity));
+                    canvas.drawRoundRect(capsule, corner, corner, fill);
+                }
+            }
+
+            /**
+             * The raised look of the liquid look's bubble (#289): light at its top edge fading down inside it, and a
+             * brighter rim, bright at the top and faint at the bottom, drawn at [share] of their strength. Light and
+             * dark glass each get the shades that read on them.
+             */
+            private void paintBubble(Canvas canvas, float corner, float share) {
+                boolean dark = isDark(base);
+                int shade = dark ? 1 : 2;
+                if (bubbleShade != shade) {
+                    bubbleShade = shade;
+                    bubbleSheen.setShader(new LinearGradient(0, 0, 0, 1,
+                            dark ? 0x40ffffff : 0x8cffffff, 0x00ffffff, Shader.TileMode.CLAMP));
+                    bubbleRim.setStyle(Paint.Style.STROKE);
+                    bubbleRim.setShader(new LinearGradient(0, 0, 0, 1,
+                            dark ? 0xb0ffffff : 0xf0ffffff, dark ? 0x28ffffff : 0x66ffffff, Shader.TileMode.CLAMP));
+                }
+                bubbleMatrix.setScale(1f, Math.max(1f, capsule.height()));
+                bubbleMatrix.postTranslate(0f, capsule.top);
+                bubbleSheen.getShader().setLocalMatrix(bubbleMatrix);
+                bubbleRim.getShader().setLocalMatrix(bubbleMatrix);
+                int alpha = scaledAlpha(255, Math.max(0f, Math.min(1f, share)));
+                bubbleSheen.setAlpha(alpha);
+                bubbleRim.setAlpha(alpha);
+                canvas.drawRoundRect(capsule, corner, corner, bubbleSheen);
+                float stroke = Math.max(1f, density * 1.25f);
+                bubbleRim.setStrokeWidth(stroke);
+                float half = stroke / 2f;
+                capsule.inset(half, half);
+                canvas.drawRoundRect(capsule, Math.max(0f, corner - half), Math.max(0f, corner - half), bubbleRim);
+                capsule.inset(-half, -half);
             }
 
             /** A light tick each time the capsule's middle moves over a different tab, wherever the tab was moved to. */
@@ -2323,18 +2539,28 @@ public final class GlassTabBar {
 
             private long lastRecorded;
             private boolean catchUpPending;
-            private final Runnable catchUp = () -> {
-                catchUpPending = false;
-                if (!bar.isAttachedToWindow() || tries.resting(SystemClock.uptimeMillis())) return;
-                recordBackdrop();
-                bar.invalidate();
-            };
+            /** A real frame permits at most three automatic captures, including one after a rest. */
+            private int catchUpsLeft = BLUR_TRIES;
+            private final Runnable catchUp;
 
-            /** Records again shortly after a recording failed, so the blur comes back on a screen that's gone still. */
+            private void catchUp() {
+                catchUpPending = false;
+                if (!bar.isAttachedToWindow() || HushgramPause.isPaused() || catchUpsLeft <= 0) return;
+                if (tries.resting(SystemClock.uptimeMillis())) {
+                    retrySoon();
+                    return;
+                }
+                catchUpsLeft--;
+                recordBackdrop();
+                // A permanent failure must not request frames that renew its own retry budget.
+                if (recorded) bar.invalidate();
+            }
+
+            /** One bounded recovery chain, with a single wake at the end of any failure rest. */
             void retrySoon() {
-                if (catchUpPending) return;
+                if (catchUpPending || catchUpsLeft <= 0 || !bar.isAttachedToWindow() || HushgramPause.isPaused()) return;
                 catchUpPending = true;
-                bar.postDelayed(catchUp, RECORD_EVERY_MS);
+                bar.postDelayed(catchUp, Math.max(RECORD_EVERY_MS, tries.waitLeft(SystemClock.uptimeMillis())));
             }
 
             /** Drops a catch-up still waiting, so the next frame can arrange a new one. */
@@ -2346,18 +2572,63 @@ public final class GlassTabBar {
             /** Drops a waiting catch-up and lets go of the recorded backdrop and the views it left out. */
             void discard() {
                 cancelCatchUp();
+                catchUpsLeft = 0;
                 RenderNode backdrop = node;
                 node = null;
                 recorded = false;
                 if (backdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) backdrop.discardDisplayList();
+                if (lens != null) lens.discard();
                 leftOut.clear();
                 surfaces.clear();
                 skipped.clear();
+                frames.clear();
                 hadSurfaces = false;
+                videoCopied = false;
+            }
+
+            /** Copies of the frames playing in the SurfaceViews under the bar, drawn in their places (#144). */
+            private final SurfaceFrames frames = new SurfaceFrames(DOWNSAMPLE);
+            /** Whether a frame has been copied since a SurfaceView last came under the bar, for the report's count. */
+            private boolean videoCopied;
+            private final Runnable frameLanded = () -> {
+                if (!videoCopied) {
+                    videoCopied = true;
+                    HookStatus.counted(FamilyNames.GLASS_TAB_BAR, COUNT_VIDEO_COPIED);
+                }
+                // A SurfaceView's new frames don't redraw a view, so the landed copy asks for the frame that records it.
+                if (bar.isAttachedToWindow()) bar.invalidate();
+            };
+
+            /**
+             * Asks for a fresh copy of each SurfaceView's frame in [parent] that crosses the strip the glass shows,
+             * from [top] and [tall] high, leaving out those inside a Reels viewer the glass doesn't draw (#222).
+             */
+            private void askFrames(ViewGroup parent, float top, float tall) {
+                long now = SystemClock.uptimeMillis();
+                Rect place = new Rect();
+                for (View view : leftOut) {
+                    if (!(view instanceof android.view.SurfaceView) || insideSkipped(view)) continue;
+                    place.set(0, 0, view.getWidth(), view.getHeight());
+                    try {
+                        parent.offsetDescendantRectToMyCoords(view, place);
+                    } catch (IllegalArgumentException gone) {
+                        continue;
+                    }
+                    if (place.bottom <= top || place.top >= top + tall) continue;
+                    frames.ask((android.view.SurfaceView) view, now, frameLanded);
+                }
+            }
+
+            private boolean insideSkipped(View view) {
+                for (View viewer : skipped) {
+                    if (viewer instanceof ViewGroup && under(view, (ViewGroup) viewer)) return true;
+                }
+                return false;
             }
 
             /** Records the backdrop if it's been long enough and this frame isn't late, or arranges to once it can. */
             void recordIfDue() {
+                catchUpsLeft = BLUR_TRIES;
                 long now = SystemClock.uptimeMillis();
                 long since = now - lastRecorded;
                 // The animation clock holds the frame's start while it lays out and draws, so this is how far in we are.
@@ -2381,6 +2652,7 @@ public final class GlassTabBar {
 
             void recordIfSurfaceAppeared() {
                 if (!surfaceAppeared()) return;
+                catchUpsLeft = BLUR_TRIES;
                 lastRecorded = SystemClock.uptimeMillis();
                 recordBackdrop();
             }
@@ -2414,6 +2686,10 @@ public final class GlassTabBar {
              */
             void recordBackdrop() {
                 if (drawingBackdrop || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+                if (!bar.isAttachedToWindow() || HushgramPause.isPaused()) {
+                    cancelCatchUp();
+                    return;
+                }
                 if (tries.resting(SystemClock.uptimeMillis())) return;
                 if (!(bar.getParent() instanceof ViewGroup) || !pillBounds(area)) return;
                 ViewGroup parent = (ViewGroup) bar.getParent();
@@ -2423,7 +2699,7 @@ public final class GlassTabBar {
                 drawingBackdrop = true;
                 try {
                     float scale = 1f / DOWNSAMPLE;
-                    float pad = dp(BLUR_DP);
+                    float pad = GlassBlur.radiusPx(blurStrength, density);
                     float radius = cornerPx(corners, false, area.height(), density);
                     float wide = area.width() + 2 * pad;
                     float tall = area.height() + 2 * pad;
@@ -2433,7 +2709,7 @@ public final class GlassTabBar {
                     if (backdrop == null) {
                         backdrop = new RenderNode("hushgram-glass");
                         backdrop.setClipToOutline(true);
-                        float blur = Math.max(1f, dp(BLUR_DP) * scale);
+                        float blur = GlassBlur.effectRadius(blurStrength, density, scale);
                         ColorMatrix saturate = new ColorMatrix();
                         saturate.setSaturation(1.5f);
                         ColorFilter colour = new ColorMatrixColorFilter(saturate);
@@ -2458,10 +2734,11 @@ public final class GlassTabBar {
                     float x0 = bar.getLeft() + area.left - pad;
                     float top = backdropSource(source, floating, scale, x0, bar.getTop(), bar.getY() + area.top, pad, tall);
                     Canvas recording = backdrop.beginRecording(width, height);
+                    boolean found;
                     try {
                         recording.concat(source);
                         recording.clipRect(x0, top, x0 + wide, top + tall);
-                        boolean found = surfacePaths(parent, barIndex, leftOut);
+                        found = surfacePaths(parent, barIndex, leftOut);
                         if (found && !hadSurfaces) HookStatus.counted(FamilyNames.GLASS_TAB_BAR, COUNT_VIDEO_LEFT_OUT);
                         hadSurfaces = found;
                         // A Reels viewer stops above a floating pill and is left out, so the glass never
@@ -2470,16 +2747,20 @@ public final class GlassTabBar {
                         for (View viewer : viewers) {
                             if (viewer != null) leaveOut(viewer, parent, leftOut, skipped);
                         }
+                        frames.keepOnly(leftOut);
                         for (int i = 0; i < barIndex; i++) {
                             View sibling = parent.getChildAt(i);
                             if (sibling.getWidth() <= 0 || sibling.getBottom() <= top || sibling.getTop() >= top + tall) continue;
-                            drawLeavingOutSurfaces(recording, sibling, leftOut, skipped, 0);
+                            drawLeavingOutSurfaces(recording, sibling, leftOut, skipped, frames::frameOf, 0);
                         }
                     } finally {
                         backdrop.endRecording();
                     }
                     recorded = true;
                     tries.worked();
+                    // A landed video copy requests a frame, so only successful recordings may ask for one.
+                    if (found) askFrames(parent, top, tall);
+                    else videoCopied = false;
                     report("backdrop recorded under " + barIndex + " views: pill " + Math.round(area.width()) + "x"
                             + Math.round(area.height()) + " as " + width + "x" + height);
                 } catch (Throwable failure) {
@@ -2523,6 +2804,10 @@ public final class GlassTabBar {
             return now < restUntil;
         }
 
+        long waitLeft(long now) {
+            return resting(now) ? restUntil - now : 0;
+        }
+
         /** A recording failed at [now]. Says whether that was one too many in a row and the blur rests. */
         boolean failed(long now) {
             if (++failedInARow < BLUR_TRIES) return false;
@@ -2558,6 +2843,22 @@ public final class GlassTabBar {
         float t = elapsed / (float) SLIDE_MS;
         float rest = 1f - t;
         return 1f - rest * rest * rest;
+    }
+
+    /** How much larger the liquid look's bubble is while it moves between tabs, and under a finger (#289). */
+    static final float BUBBLE_SWELL = 0.08f;
+
+    /**
+     * The size of the liquid look's bubble [elapsed] ms into a slide that began at size [from]: it swells to
+     * {@link #BUBBLE_SWELL} over 1 mid-slide, eases back to 1 as it settles, and carries on from [from] when
+     * it was already bigger, such as a finger letting go of it. 1 once the slide is over, or with none.
+     */
+    static float bubbleScale(long elapsed, float from) {
+        if (elapsed >= SLIDE_MS) return 1f;
+        float t = Math.max(0f, elapsed) / (float) SLIDE_MS;
+        float swell = 1f + BUBBLE_SWELL * (float) Math.sin(Math.PI * t);
+        float carried = 1f + Math.max(0f, from - 1f) * (1f - t);
+        return Math.max(swell, carried);
     }
 
     /**

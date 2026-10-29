@@ -33,7 +33,8 @@ import app.hushgram.extension.shared.diagnostics.HookStatus;
  *
  * <ul>
  *   <li>Each builder of the menu tells {@link #building} which story's menu it's building, then
- *       hands its labels through {@link #labels} before the menu shows them. With the switch on,
+ *       hands its labels through {@link #labels} ({@link #labelList} for your own highlights'
+ *       menu, a list) before the menu shows them. With the switch on,
  *       the menu gets Download at the end. A photo story with music, which Instagram serves as a
  *       video, gets Download as video and Download as photo instead, and a filmed video gets
  *       Download and Download as photo, which saves the still Instagram shows before it plays (#215).
@@ -140,6 +141,25 @@ public final class StoryDownload {
     }
 
     /**
+     * The labels [labels] of a highlight's menu on your own profile, which Instagram builds as a
+     * list where other story menus build an array (#339). HushGram's rows go at its end, as
+     * {@link #labels} adds them. A list that has the rows already is left alone. Never throws.
+     */
+    public static void labelList(List<Object> labels) {
+        try {
+            HookStatus.invoked(FamilyNames.STORY_DOWNLOAD);
+            if (labels == null || !on()) return;
+            CharSequence[] more = labels(new CharSequence[0], rows(building.get()));
+            for (Object label : labels) {
+                if (label instanceof CharSequence && more[0].toString().contentEquals((CharSequence) label)) return;
+            }
+            labels.addAll(Arrays.asList(more));
+        } catch (Throwable t) {
+            HookStatus.threw(FamilyNames.STORY_DOWNLOAD, "story menu", t);
+        }
+    }
+
+    /**
      * The rows for the story [menu] is open on, counting what the story was for the diagnostic
      * report. Download alone when it can't tell. Never throws.
      */
@@ -202,7 +222,7 @@ public final class StoryDownload {
     private static boolean saveMedia(Context context, Object media) {
         List<MediaSave.Rendition> videos = ReelDownload.renditions(media);
         String manifest = InstagramMedia.dashManifest(media);
-        PostDetails details = ReelDownload.details(media);
+        PostDetails details = details(media);
         if (!videos.isEmpty() || manifest != null) {
             final int files = videos.size();
             final boolean dash = manifest != null;
@@ -218,7 +238,12 @@ public final class StoryDownload {
         List<MediaSave.Rendition> pictures = pictures(media);
         final int sizes = pictures.size();
         Logger.diagnosticInfo(DiagnosticCategory.DOWNLOADS, SOURCE, () -> "story photo download tapped: " + sizes + " size(s)");
-        return MediaSave.savePhoto(context, pictures, ReelDownload.details(media));
+        return MediaSave.savePhoto(context, pictures, details(media));
+    }
+
+    /** A story has a numeric story URL, not a public post shortcode. */
+    static PostDetails details(Object media) {
+        return ReelDownload.details(media).withPostId(null);
     }
 
     /** The sizes [media] lists for its picture, with the size each states. Never null. */

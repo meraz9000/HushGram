@@ -60,6 +60,7 @@ public class TimerLifecycleTest {
     private static final int SCRUBBER_ID = 0x7f0b0172;
     private static final int MEDIA_ID = 0x7f0b0173;
     private static final int FOOTERS_ID = 0x7f0b0174;
+    private static final int REELS_TAB_ID = 0x7f0b0175;
 
     /** A list whose position the test sets. A group, like every list a scroll moves: a lone view is never taken for one. */
     static final class FakeList extends FrameLayout {
@@ -255,6 +256,22 @@ public class TimerLifecycleTest {
         root.addView(tabs, params);
         layout();
         return tabs;
+    }
+
+    /**
+     * Selects a Reels tab in [tabs], where Instagram hides its bar for a paused reel and the viewer keeps
+     * the pill's slot. With another tab selected the hidden bar gives the slot back (#347).
+     */
+    private void selectReelsTab(LinearLayout tabs) {
+        Map<String, Integer> ids = ReflectionHelpers.getStaticField(GlassTabBar.class, "IDS");
+        synchronized (ids) {
+            ids.put(GlassTabBar.REELS_TAB, REELS_TAB_ID);
+        }
+        View reelsTab = new View(activity);
+        reelsTab.setId(REELS_TAB_ID);
+        tabs.addView(reelsTab, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        reelsTab.setSelected(true);
+        layout();
     }
 
     /** Puts a Reels viewer over the list, down to the bar's top. */
@@ -478,6 +495,47 @@ public class TimerLifecycleTest {
     }
 
     /**
+     * #285: with Full screen Reels on, HushGram hides the navigation bar on Reels and Instagram is answered
+     * 0 for it there, so the pill gave up the bar's room and dropped by the bar's height with every switch
+     * to Reels, then rose again on Home. While the bar is hidden the pill keeps that room, and the reel
+     * keeps its margin and its size. A bar that simply isn't there leaves no room.
+     */
+    @Test public void thePillKeepsItsHeightWhileFullScreenHidesTheNavigationBar() {
+        LinearLayout tabs = namedTabBar();
+        Reel reel = showReel();
+        Settings.GLASS_TAB_BAR.save(true);
+        GlassTabBar.apply(activity);
+        GlassTabBar.nowInFront(activity);
+        assertEquals("Home, with the bar showing", 0, GlassTabBar.navBarHeight(63));
+        idle(GlassTabBar.REELS_LOOK_MS * 2);
+        tabs.getViewTreeObserver().dispatchOnPreDraw();
+        layout();
+        idle(500);
+        layout();
+        int pill = tabs.getLayoutParams().height;
+        assertEquals(150 + 63, pill);
+        assertEquals(pill, bottomMargin(reel.viewer));
+        int height = reel.viewer.getHeight();
+
+        // Reels hides the bar: Instagram is answered 0 for the height it offers, then offers its 0 back.
+        assertEquals(0, GlassTabBar.navBarHeight(0, 63));
+        idle(GlassTabBar.REELS_LOOK_MS * 2);
+        tabs.getViewTreeObserver().dispatchOnPreDraw();
+        layout();
+        assertEquals("the pill kept its height", pill, tabs.getLayoutParams().height);
+        assertEquals("and the reel its margin", pill, bottomMargin(reel.viewer));
+        assertEquals("and its size", height, reel.viewer.getHeight());
+
+        assertEquals("no bar at all", 0, GlassTabBar.navBarHeight(0));
+        idle(GlassTabBar.REELS_LOOK_MS * 2);
+        tabs.getViewTreeObserver().dispatchOnPreDraw();
+        layout();
+        assertEquals(150, tabs.getLayoutParams().height);
+        assertEquals(150, bottomMargin(reel.viewer));
+        GlassTabBar.restoreAll();
+    }
+
+    /**
      * #222: Instagram pads its screens by the navigation bar's height it last had: 0 under a floating
      * pill, the real height with the keyboard up or its bar hidden for a paused reel. The Reels viewer's
      * margin makes up the difference, so its bottom edge and its size stay put whichever answer Instagram
@@ -488,6 +546,7 @@ public class TimerLifecycleTest {
      */
     @Test public void aReelKeepsItsSizeWhicheverNavigationBarHeightInstagramPadsItsScreensBy() {
         LinearLayout tabs = namedTabBar();
+        selectReelsTab(tabs);
         Reel reel = showReel();
         // Instagram's screens' container, which it pads by the navigation bar's height it keeps.
         FrameLayout panel = new FrameLayout(activity);
@@ -563,6 +622,7 @@ public class TimerLifecycleTest {
      */
     @Test public void aPausedReelsFooterLiesOverTheReelInsteadOfShrinkingIt() {
         LinearLayout tabs = namedTabBar();
+        selectReelsTab(tabs);
         Reel reel = showReel();
         Settings.GLASS_TAB_BAR.save(true);
         GlassTabBar.apply(activity);

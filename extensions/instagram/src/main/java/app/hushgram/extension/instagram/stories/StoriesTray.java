@@ -9,8 +9,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Function;
 
 import app.hushgram.extension.instagram.feed.FeedItemKinds;
+import app.hushgram.extension.instagram.feed.HiddenAccounts;
 import app.hushgram.extension.instagram.settings.FamilyNames;
 import app.hushgram.extension.instagram.settings.Settings;
 import app.hushgram.extension.shared.Logger;
@@ -26,7 +28,9 @@ import app.hushgram.extension.shared.settings.BooleanSetting;
  * binder group. The patch asks {@link #hideTray} as that group adds its row, and while Hide the
  * Stories tray is on the group adds none. Coming back to Home mid-feed, from a story opened in DMs
  * say, Instagram can also move the tray into an overlay above the feed without building the row
- * again (#88), so the patch asks {@link #hideTray} there too and the overlay stays empty.
+ * again (#88), so the patch asks {@link #keepTrayOutOfOverlay} there and the overlay stays empty
+ * while the tray is hidden. Keep the Stories tray in the feed answers yes there too, and the row
+ * stays in the feed instead of floating over it (#357).
  *
  * <p>The tray's items come from its own request, each marked with a reel type, and a story from an
  * account you don't follow is a suggested one. The patch passes each item the tray's parser reads
@@ -34,7 +38,10 @@ import app.hushgram.extension.shared.settings.BooleanSetting;
  * on, a rewind card while Hide story rewinds is on, and a card Instagram made from what's been
  * posted before while Hide memories and recaps is on. The parser skips it the way it skips an item
  * that didn't parse. With Stop loading stories and highlights on, every item goes, and {@link #remaining} empties
- * the list of reels the tray would fetch after them, so nothing in the row loads.
+ * the list of reels the tray would fetch after them, so nothing in the row loads. With Filter the
+ * Stories tray by verified accounts on, an account's story goes when its owner's verified badge
+ * isn't the one chosen (#340), read through {@link #trayOwner}, {@link #userVerified} and
+ * {@link #userId}, which the patch fills. Your own story, by Home's signed-in account, stays.
  *
  * <p>Instagram also puts cards of accounts to follow between the stories you tap through, two ways.
  * One is a reel of its own in the tray's answer, the empty story state, whose cards suggest
@@ -103,6 +110,7 @@ public final class StoriesTray {
     static final String RECAP_ROUTE = "Memories and recaps";
     static final String STOP_ROUTE = "Stop loading stories and highlights";
     static final String SUGGESTION_ROUTE = "Suggested for you between stories";
+    static final String BADGE_ROUTE = "Stories by verified badge";
 
     /** The diagnostic counter route for Music for you card checks answered no, one for each time Instagram asked. */
     static final String MUSIC_CARD_ROUTE = "Music for you card";
@@ -155,8 +163,7 @@ public final class StoriesTray {
     }
 
     /**
-     * Injected first thing where Home's story tray adds its row and where Instagram floats the tray
-     * over the feed. Answers true, and the tray stays out, while Hide the Stories tray is on, and
+     * Injected first thing where Home's story tray adds its row. Answers true, and the tray stays out, while Hide the Stories tray is on, and
      * false otherwise, or when anything goes wrong. Never throws, and never waits for the settings:
      * before they're ready the tray stays.
      */
@@ -176,21 +183,47 @@ public final class StoriesTray {
     }
 
     /**
+     * Injected first thing where Instagram floats the tray over the feed, as you come back to Home
+     * mid-feed or scroll up quickly. Answers true, and the tray stays in its row at the top of the
+     * feed, while Hide the Stories tray or Keep the Stories tray in the feed is on (#357: on some
+     * accounts the floating tray stayed over the feed after a swipe between tabs and never scrolled
+     * away). False otherwise, or when anything goes wrong. Never throws, and never waits for the
+     * settings: before they're ready the tray floats as Instagram decides.
+     */
+    public static boolean keepTrayOutOfOverlay() {
+        try {
+            HookStatus.invoked(FamilyNames.STORIES_TRAY);
+            if (!Utils.settingsReady()) return false;
+            return Settings.HIDE_STORIES_TRAY.get() || Settings.KEEP_TRAY_IN_FEED.get();
+        } catch (Throwable failure) {
+            HookStatus.threw(FamilyNames.STORIES_TRAY, "floating tray", failure);
+            return false;
+        }
+    }
+
+    /**
      * Injected where the tray's parser reads each item. Answers null for a suggested item, a rewind
-     * or a recap while its switch is on, and [item] itself otherwise, or when anything goes wrong.
-     * Never throws.
+     * or a recap while its switch is on, an account's story whose owner's verified badge isn't the
+     * one kept, and [item] itself otherwise, or when anything goes wrong. Never throws.
      */
     public static Object filter(Object item) {
+        return filter(item, StoriesTray::trayOwner, StoriesTray::userVerified, StoriesTray::userId);
+    }
+
+    /** {@link #filter(Object)}, reading a story's owner, its badge and its id through [owner], [verified] and [id]. */
+    static Object filter(Object item, Function<Object, Object> owner, Function<Object, Boolean> verified,
+            Function<Object, String> id) {
         if (item == null) return null;
         try {
             HookStatus.invoked(FamilyNames.STORIES_TRAY);
-            FeedFilterCounters.sawKind(KINDS_ROUTE, FeedItemKinds.kindOf(item, REEL_TYPE_MARKER, FamilyNames.STORIES_TRAY));
+            String type = FeedItemKinds.kindOf(item, REEL_TYPE_MARKER, FamilyNames.STORIES_TRAY);
+            FeedFilterCounters.sawKind(KINDS_ROUTE, type);
             if (stopLoading()) {
                 FeedFilterCounters.removed(STOP_ROUTE, 1, "any");
                 return null;
             }
             String kind = FeedItemKinds.kindIn(item, FILTERED, FamilyNames.STORIES_TRAY);
-            if (kind == null) return item;
+            if (kind == null) return REEL_TYPE_MARKER.equals(type) ? byBadge(item, owner, verified, id) : item;
             String route = routeFor(kind);
             FeedFilterCounters.sawKind(route, kind);
             if (!Utils.settingsReady() || !switchFor(kind).get()) return item;
@@ -201,6 +234,42 @@ public final class StoriesTray {
             HookStatus.threw(FamilyNames.STORIES_TRAY, "tray item", failure);
             return item;
         }
+    }
+
+    /**
+     * A story [item] of an account's own, while Filter the Stories tray by verified accounts is on
+     * (#340): null when its owner's verified badge isn't the one {@link Settings#TRAY_BADGE} keeps,
+     * and [item] itself for your own story, an owner whose badge or id Instagram didn't send, or
+     * with the switch off.
+     */
+    private static Object byBadge(Object item, Function<Object, Object> ownerOf, Function<Object, Boolean> verifiedOf,
+            Function<Object, String> idOf) {
+        if (!Utils.settingsReady() || !Settings.FILTER_TRAY_BY_BADGE.get()) return item;
+        Object owner = ownerOf.apply(item);
+        if (owner == null) return item;
+        Boolean verified = verifiedOf.apply(owner);
+        String id = idOf.apply(owner);
+        if (verified == null || id == null || id.isEmpty() || id.equals(HiddenAccounts.signedInAccount())) return item;
+        String badge = verified ? "verified" : "not verified";
+        FeedFilterCounters.sawKind(BADGE_ROUTE, badge);
+        if (verified == (Settings.TRAY_BADGE.get() == TrayBadge.VERIFIED)) return item;
+        FeedFilterCounters.removed(BADGE_ROUTE, 1, badge);
+        return null;
+    }
+
+    /** The account whose story a tray [item] is, a User. The patch writes the body. Null as built. */
+    public static Object trayOwner(Object item) {
+        return null;
+    }
+
+    /** Whether [user], a User, has Instagram's verified badge, or null when it doesn't say. The patch writes the body. Null as built. */
+    public static Boolean userVerified(Object user) {
+        return null;
+    }
+
+    /** [user]'s id, a User's, or null. The patch writes the body. Null as built. */
+    public static String userId(Object user) {
+        return null;
     }
 
     /**

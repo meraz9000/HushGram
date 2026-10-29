@@ -82,6 +82,9 @@ final class DownloadsCategory {
                 downloads.addPreference(toggle(context, Settings.COPY_PROFILE_TEXT, L10n.t("Copy username and bio"),
                         L10n.t("Adds Copy username and Copy bio to the menu on someone's profile. Each copies the "
                                 + "text exactly as the account has it.")));
+                downloads.addPreference(toggle(context, Settings.PROFILE_EXTRAS_BUTTON, L10n.t("Profile extras button"),
+                        L10n.t("Puts a button next to the three dots on profiles that opens HushGram's profile actions. "
+                                + "The rows in the three-dot menu stay too.")));
             }
             if (build.contains(PatchFamily.VOICE_MESSAGE)) {
                 downloads.addPreference(toggle(context, Settings.DOWNLOAD_VOICE_MESSAGES, L10n.t("Download voice messages"),
@@ -105,6 +108,10 @@ final class DownloadsCategory {
                     L10n.t("Saves videos other apps can open, at full size. A video Instagram only has as VP9 or AV1 "
                             + "is converted to H.264 on your phone instead of saved smaller. Slower, and videos over "
                             + "3 minutes stay smaller.")));
+            downloads.addPreference(toggle(context, Settings.DOWNLOAD_NO_AV1, L10n.t("Never save AV1 video"),
+                    L10n.t("For phones that play AV1 badly. A video Instagram has at full size only as AV1 is saved "
+                            + "as VP9 when it has one, or at its largest H.264 size. Convert to keep the full size "
+                            + "then converts only VP9.")));
             downloads.addPreference(qualityRow(context));
             downloads.addPreference(folderRow(context));
             downloads.addPreference(fileNameRow(context));
@@ -140,6 +147,9 @@ final class DownloadsCategory {
                 });
                 downloads.addPreference(mark(clearHistory, SettingsIcons.DELETE));
             }
+            // Where every save goes, last, since the rows above it keep their places.
+            downloads.addPreference(page.saveTreeRow(context));
+            downloads.addPreference(page.galleryFoldersRow(context));
         }
     }
 }

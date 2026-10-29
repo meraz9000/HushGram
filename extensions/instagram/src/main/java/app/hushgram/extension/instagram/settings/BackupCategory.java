@@ -6,10 +6,9 @@
  */
 package app.hushgram.extension.instagram.settings;
 
-import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.RESTORE_QUICK_SETUPS_ROW_KEY;
 import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.category;
 import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.mark;
-import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.restoreQuickSetupsSummary;
+import static app.hushgram.extension.instagram.settings.HushgramPreferenceFragment.toggle;
 
 import android.content.Context;
 import android.preference.PreferenceCategory;
@@ -34,6 +33,8 @@ final class BackupCategory {
         page.exportConfiguration.setSummary(L10n.t("Choose a file for your installed patches' settings. Accounts and history stay on this device."));
         page.exportConfiguration.setOnPreferenceClickListener(p -> { page.pickConfiguration(false); return true; });
         backup.addPreference(mark(page.exportConfiguration, SettingsIcons.EXPORT));
+        backup.addPreference(toggle(context, Settings.DATE_SETTINGS_EXPORT, L10n.t("Date in backup file names"),
+                L10n.t("Add the current date and time when exporting settings. Off keeps HushGram-settings.json.")));
         page.importConfiguration = new Row(context);
         page.importConfiguration.setKey("hushgram_import_configuration");
         page.importConfiguration.setPersistent(false);
@@ -48,19 +49,5 @@ final class BackupCategory {
         page.undoConfiguration.setTitle(L10n.t("Undo settings import"));
         backup.addPreference(mark(page.undoConfiguration, SettingsIcons.DELETE));
         page.showConfiguration();
-        Row restoreQuick = new Row(context);
-        restoreQuick.setKey(RESTORE_QUICK_SETUPS_ROW_KEY);
-        restoreQuick.setPersistent(false);
-        restoreQuick.actsAtOnce = true;
-        restoreQuick.setTitle(L10n.t("Quick setups on the home page"));
-        restoreQuick.setSummary(restoreQuickSetupsSummary());
-        restoreQuick.setOnPreferenceClickListener(p -> {
-            if (Settings.HIDE_QUICK_SETUPS.save(!Settings.HIDE_QUICK_SETUPS.savedValue())) {
-                p.setSummary(restoreQuickSetupsSummary());
-                page.filterSettings();
-            }
-            return true;
-        });
-        backup.addPreference(mark(restoreQuick, SettingsIcons.TOOLS));
     }
 }

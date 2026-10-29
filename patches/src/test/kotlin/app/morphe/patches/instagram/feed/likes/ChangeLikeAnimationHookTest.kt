@@ -31,6 +31,7 @@ import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethodImplementation
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethodParameter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,10 +40,11 @@ import java.io.File
 /**
  * The double-tap heart's set-up for a post hands Instagram's animation to LikeAnimation.pick first
  * and its check before playing one of Instagram's own to LikeAnimation.allow, as an int, and the
- * extension's stub answers the plain heart's value. Nothing else of the extension's is filled in.
- * Since 452 the hearts of feed posts and reels are drawn without that view: the post's animation
- * goes through pick where it's read off the post and each heart's where it's kept, and every check
- * after a comparison with the plain heart through allow.
+ * extension's stub answers the plain heart's value. Since 452 the hearts of feed posts and reels are
+ * drawn without that view: the post's animation goes through pick where it's read off the post and
+ * each heart's where it's kept, and every check after a comparison with the plain heart through
+ * allow. The settings list's preview (#299) gets the factory a heart is built with and the call the
+ * view plays it with, or neither stub is filled when the extension couldn't make the call.
  */
 class ChangeLikeAnimationHookTest {
     @Test
@@ -137,6 +139,50 @@ class ChangeLikeAnimationHookTest {
         refuses("a stray branch right after a check", listOf(animation(), view(), extension()) + hearts(stray = true))
     }
 
+    /** #299: the list's preview builds a heart the way a post's is built and plays it the way the view does. */
+    @Test
+    fun theListCanShowAndPlayEachHeart() {
+        val context = PatchContexts.of(listOf(animation(), view(plays = true), drawable(), extension()) + hearts())
+        val anchors = context.findLikeAnimation()
+        assertEquals(FACTORY, anchors.factory)
+        assertEquals("the call with no arguments, not the scale", PLAY, anchors.play)
+        context.applyLikeAnimation(anchors)
+
+        val heart = context.stub(HEART_STUB)
+        assertEquals(listOf(Opcode.CHECK_CAST, Opcode.INVOKE_STATIC, Opcode.MOVE_RESULT_OBJECT, Opcode.RETURN_OBJECT),
+            heart.take(4).map { it.opcode })
+        assertEquals(ANIMATION, (heart[0] as ReferenceInstruction).reference.toString())
+        assertEquals(FACTORY, (heart[1] as ReferenceInstruction).reference.toString())
+        val registers = context.mutableClassDefBy(LIKE_ANIMATION).methods.single { it.name == HEART_STUB }.implementation!!.registerCount
+        assertEquals("the context and the animation", listOf(registers - 2, registers - 1),
+            (heart[1] as FiveRegisterInstruction).let { listOf(it.registerC, it.registerD) })
+        val play = context.stub(PLAY_STUB)
+        assertEquals(listOf(Opcode.CHECK_CAST, Opcode.INVOKE_VIRTUAL, Opcode.RETURN_VOID), play.take(3).map { it.opcode })
+        assertEquals(DRAWABLE, (play[0] as ReferenceInstruction).reference.toString())
+        assertEquals(PLAY, (play[1] as ReferenceInstruction).reference.toString())
+    }
+
+    /** Without what it needs the preview is left out, and the rest of the patch still goes in. */
+    @Test
+    fun aPreviewTheExtensionCantMakeIsLeftOut() {
+        fun filled(classes: List<ClassDef>): Pair<Boolean, Boolean> {
+            val context = PatchContexts.of(classes)
+            context.applyLikeAnimation(context.findLikeAnimation())
+            return context.stub(HEART_STUB).any { it.opcode == Opcode.INVOKE_STATIC } to
+                context.stub(PLAY_STUB).any { it.opcode == Opcode.INVOKE_VIRTUAL }
+        }
+        val base = listOf(animation(), extension())
+        assertEquals("a view that never plays its heart", true to false, filled(base + view() + drawable() + hearts()))
+        assertEquals("a play that isn't public", true to false,
+            filled(base + view(plays = true) + drawable(startFlags = AccessFlags.FINAL.value) + hearts()))
+        assertEquals("a drawable that isn't public", true to false,
+            filled(base + view(plays = true) + drawable(flags = AccessFlags.ABSTRACT.value) + hearts()))
+        assertEquals("no drawable to look the play up in", true to false, filled(base + view(plays = true) + hearts()))
+        assertEquals("two ways to play it", true to false, filled(base + view(plays = true, twoPlays = true) + drawable() + hearts()))
+        assertEquals("a factory that isn't public", false to false,
+            filled(base + view(plays = true) + drawable() + hearts(factoryFlags = AccessFlags.STATIC.value)))
+    }
+
     /** A branch landing on the check's test would skip allow, so the patch fails before changing anything. */
     @Test
     fun aBranchOntoTheCheckTestFailsThePatchUnchanged() {
@@ -174,11 +220,17 @@ class ChangeLikeAnimationHookTest {
 
     private fun builds(bundle: File, label: String) {
         val view = FixtureDex.classes(bundle, setOf(LIKE_ACTION_VIEW)).values.single()
-        val animation = view.methods.single { it.name == SET_UP_CUSTOM_LIKES }.parameterTypes.single().toString()
+        val setUp = view.methods.single { it.name == SET_UP_CUSTOM_LIKES }
+        val animation = setUp.parameterTypes.single().toString()
+        // #299: the heart the factory builds, and the class above it, which declares the call that plays it.
+        val heart = setUp.implementation!!.instructions.mapNotNull { (it as? ReferenceInstruction)?.reference as? MethodReference }
+            .first { it.parameterTypes.map(Any::toString) == listOf(CONTEXT, animation) }.returnType
         val kept = mutableListOf<ClassDef>()
         FixtureDex.forEach(bundle) { dex ->
-            for (classDef in dex.classes) if (classDef.mentions(animation)) kept += ImmutableClassDef.of(classDef)
+            for (classDef in dex.classes) if (classDef.mentions(animation) || classDef.type == heart) kept += ImmutableClassDef.of(classDef)
         }
+        val drawable = kept.single { it.type == heart }
+        kept += FixtureDex.classes(bundle, setOfNotNull(drawable.superclass)).values
         val context = PatchContexts.of(kept.distinctBy { it.type } + extension())
 
         val anchors = context.findLikeAnimation()
@@ -205,6 +257,16 @@ class ChangeLikeAnimationHookTest {
         assertEquals(label, 1, code.count { it.calls(PICK_LIKE_ANIMATION) })
         assertEquals(label, 1, code.count { it.calls(ALLOW_LIKE_ANIMATION) })
         assertEquals(label, anchors.none.toString(), (context.stub(NO_ANIMATION_STUB)[0] as ReferenceInstruction).reference.toString())
+
+        // #299: the list's preview builds each heart with the post's factory and plays it with the view's call.
+        assertNotNull("$label: a factory the preview can call", anchors.factory)
+        assertEquals(label, heart, anchors.factory!!.substringAfterLast(')'))
+        assertEquals(label, listOf(Opcode.CHECK_CAST, Opcode.INVOKE_STATIC, Opcode.MOVE_RESULT_OBJECT, Opcode.RETURN_OBJECT),
+            context.stub(HEART_STUB).take(4).map { it.opcode })
+        assertEquals(label, anchors.factory, (context.stub(HEART_STUB)[1] as ReferenceInstruction).reference.toString())
+        assertNotNull("$label: a call the preview can play the heart with", anchors.play)
+        assertEquals(label, listOf(Opcode.CHECK_CAST, Opcode.INVOKE_VIRTUAL, Opcode.RETURN_VOID), context.stub(PLAY_STUB).take(3).map { it.opcode })
+        assertEquals(label, anchors.play, (context.stub(PLAY_STUB)[1] as ReferenceInstruction).reference.toString())
 
         // #299: 452 draws the feed's and the reels' hearts without the view.
         assertTrue("$label: the feed's heart and the reels' (${anchors.kept.size})", anchors.kept.size >= 2)
@@ -295,11 +357,23 @@ class ChangeLikeAnimationHookTest {
         const val COMPONENT = "Lfixture/HeartComponent;"
         const val LAMBDA = "Lfixture/HeartLambda;"
         const val PLAIN = "Lfixture/PlainHeart;"
-        const val FACTORY = "$HEARTS->make($CONTEXT$ANIMATION)Ljava/lang/Object;"
+        const val DRAWABLE = "Lfixture/HeartDrawable;"
+        const val FACTORY = "$HEARTS->make($CONTEXT$ANIMATION)$DRAWABLE"
         const val HEART_FIELD = "$COMPONENT->animation:$ANIMATION"
+        const val VIEW_HEART = "$LIKE_ACTION_VIEW->heart:$DRAWABLE"
+        const val PLAY = "$DRAWABLE->start()V"
         val PUBLIC_FINAL = AccessFlags.PUBLIC.value or AccessFlags.FINAL.value
 
         fun extension(): ClassDef = ExtensionDex.classDef(LIKE_ANIMATION)
+
+        /** The heart's drawable, with the call that plays it and one that takes an argument. */
+        fun drawable(
+            flags: Int = AccessFlags.PUBLIC.value or AccessFlags.ABSTRACT.value,
+            startFlags: Int = PUBLIC_FINAL,
+        ): ClassDef = ImmutableClassDef(DRAWABLE, flags, "Landroid/graphics/drawable/Drawable;", null, null, null, null, listOf(
+            define(DRAWABLE, "start", emptyList(), "V", 1, startFlags, "return-void"),
+            define(DRAWABLE, "scale", listOf("F"), "V", 2, PUBLIC_FINAL, "return-void"),
+        ))
 
         /** The animation enum: the plain heart's value and one Rings animation, as static fields of its own type. */
         fun animation(
@@ -315,7 +389,8 @@ class ChangeLikeAnimationHookTest {
          * The heart view as 450 has it: the set-up for a post (here "set") plays the plain heart when
          * the animation is missing or the plain heart's value, or when the session's check says no,
          * and hands it to the set-up for one of Instagram's own otherwise. v0 and v1 are its locals,
-         * then the view, the session and the animation.
+         * then the view, the session and the animation. With [plays] it also plays the heart it
+         * keeps and scales it, and with [twoPlays] stops it another way too.
          */
         fun view(
             setUp: String = SET_UP_CUSTOM_LIKES,
@@ -323,6 +398,8 @@ class ChangeLikeAnimationHookTest {
             compare: String = "$ANIMATION->NONE:$ANIMATION",
             check: String = CHECK,
             entry: String = "",
+            plays: Boolean = false,
+            twoPlays: Boolean = false,
         ): ClassDef {
             val comparison = if (compare.isEmpty()) "" else "sget-object v0, $compare\nif-eq p2, v0, :plain"
             val body = """
@@ -346,6 +423,14 @@ class ChangeLikeAnimationHookTest {
                 method("set", listOf(SESSION, ANIMATION), 5, instance, body),
             )
             if (twice) methods += method("setAgain", listOf(SESSION, ANIMATION), 5, instance, body)
+            if (plays) {
+                methods += method("tap", emptyList(), 2, instance,
+                    "iget-object v0, p0, $VIEW_HEART\nif-eqz v0, :done\ninvoke-virtual { v0 }, $PLAY\n:done\nreturn-void")
+                methods += method("grow", emptyList(), 3, instance,
+                    "iget-object v0, p0, $VIEW_HEART\nconst/4 v1, 0x0\ninvoke-virtual { v0, v1 }, $DRAWABLE->scale(F)V\nreturn-void")
+            }
+            if (twoPlays) methods += method("stop", emptyList(), 2, instance,
+                "iget-object v0, p0, $VIEW_HEART\ninvoke-virtual { v0 }, $DRAWABLE->stop()V\nreturn-void")
             return ImmutableClassDef(LIKE_ACTION_VIEW, AccessFlags.PUBLIC.value, "Landroid/widget/ImageView;", null, null, null, null, methods)
         }
 
@@ -372,6 +457,7 @@ class ChangeLikeAnimationHookTest {
             keeps: Boolean = true,
             none: String = "$ANIMATION->NONE:$ANIMATION",
             stray: Boolean = false,
+            factoryFlags: Int = AccessFlags.PUBLIC.value or AccessFlags.STATIC.value,
         ): List<ClassDef> {
             val static = AccessFlags.PUBLIC.value or AccessFlags.STATIC.value
             val source = """
@@ -382,7 +468,7 @@ class ChangeLikeAnimationHookTest {
                 return-object v0
             """
             val factoryMethods = listOf(
-                define(HEARTS, "make", listOf(CONTEXT, ANIMATION), "Ljava/lang/Object;", 3, static, "const/4 v0, 0x0\nreturn-object v0"),
+                define(HEARTS, "make", listOf(CONTEXT, ANIMATION), DRAWABLE, 3, factoryFlags, "const/4 v0, 0x0\nreturn-object v0"),
                 define(HEARTS, "of", listOf("Ljava/lang/Object;"), ANIMATION, 2, static, source),
             ) + if (twoSources) listOf(define(HEARTS, "alsoOf", listOf("Ljava/lang/Object;"), ANIMATION, 2, static, source)) else emptyList()
             val factory = ImmutableClassDef(HEARTS, PUBLIC_FINAL, "Ljava/lang/Object;", null, null, null, null, factoryMethods)

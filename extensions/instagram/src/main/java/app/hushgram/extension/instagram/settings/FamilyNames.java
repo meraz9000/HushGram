@@ -30,9 +30,11 @@ public final class FamilyNames {
     public static final String POST_TIME = "Show a post's exact time";
     public static final String HIDDEN_LIKE_COUNTS = "Show hidden like counts";
     public static final String BACK_LEAVES_HOME = "Back leaves Home";
+    public static final String HOME_PLACE = "Keep your place in Home";
     public static final String STORY_LOOP = "Loop a story";
     public static final String STORY_SOUND = "Start stories with sound";
     public static final String STORY_SWIPE_REPLY = "Stop swipe up to reply";
+    public static final String STORY_FONTS = "Story text fonts";
     public static final String STORY_UPLOAD_QUALITY = "Upload stories at full quality";
     public static final String FEED_SOUND = "Start feed videos with sound";
     public static final String FEED_TAP_PAUSE = "Tap a feed video to pause it";
@@ -48,12 +50,15 @@ public final class FamilyNames {
     public static final String MESSAGES_LOCK = "Lock your messages";
     public static final String STORIES_TRAY = "Hide suggested stories";
     public static final String STORY_RING = "Story ring size";
+    public static final String STORY_PROGRESS_BAR = "Thicker story progress bar";
+    public static final String STORY_SEEK_BAR = "Seek bar on stories";
     public static final String FEED_REELS = "Hide Reels in the feed";
     public static final String FEED_SUGGESTIONS = "Hide suggested posts";
     public static final String HOME_FEED = "Hide the home feed";
     public static final String FOLLOWING_FEED = "Start Home on Following";
     public static final String SWIPE_TO_CREATE = "Stop swipe to create";
     public static final String TAB_SWIPE = "Stop swiping between tabs";
+    public static final String TAB_BAR_LAYOUT = "Tab bar layout";
     public static final String FULL_RESOLUTION = "Full resolution photos";
     public static final String META_AI = "Hide Meta AI";
     public static final String EXPLORE_GRID = "Hide the Explore grid";
@@ -77,6 +82,8 @@ public final class FamilyNames {
     public static final String EMOJI_STYLE = "Emoji style";
     public static final String ACCENT_COLOR = "Accent color";
     public static final String LAUNCH_SCREEN = "HushGram launch screen";
+    public static final String APP_ICON = "Pick the app icon";
+    public static final String SETTINGS_ROWS = "Hide rows in Instagram's settings";
     public static final String FONT = "Font";
     public static final String NOTIFICATION_GROUPS = "Group Instagram's notifications";
     public static final String HDR_BOOST = "Turn off HDR brightness boosts";
@@ -110,6 +117,7 @@ public final class FamilyNames {
     public static final String REEL_SEEK_BAR = "Keep a seek bar on Reels";
     public static final String REEL_BLUR_BARS = "Blur the bars around Reels";
     public static final String REEL_TAP_AND_VOLUME = "Control taps and volume on Reels";
+    public static final String REEL_SOUND = "Start reels with sound";
     public static final String REEL_AUTO_SCROLL = "Keep Reels auto scroll on";
     public static final String REEL_SCROLLING = "Stop Reels scrolling";
     public static final String SWIPE_TO_PROFILE = "Swipe left to open the profile";
@@ -129,6 +137,7 @@ public final class FamilyNames {
     public static final String SCREENSHOT_REPORTS = "Don't report screenshots";
     public static final String SCREENSHOT_BLOCK = "Allow screenshots";
     public static final String KEEP_IN_CHAT = "Keep in chat";
+    public static final String CHAT_REELS = "Swipe through a chat's reels";
     public static final String ASK_BEFORE_CALL = "Ask before a call";
     public static final String MESSAGE_BOX = "Message box buttons";
     public static final String ASK_BEFORE_LIKE = "Ask before a like";
